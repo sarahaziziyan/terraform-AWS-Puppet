@@ -1,9 +1,9 @@
 terraform {
 
   backend "s3" {
-    bucket = "terraform-backend-sarah"
-    key    = "build/coloring-app/terraform.tfstate"
-    region = "ap-southeast-2"
+    bucket = "backend-terraform-online-course"
+    key    = "build/online-course/terraform.tfstate"
+    region = "ap-southeast-1"
   }
   required_providers {
     aws = {

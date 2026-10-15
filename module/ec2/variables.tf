@@ -6,7 +6,7 @@ variable "instance_type" {
   default = "t2.nano"
 }
 variable "ami" {
-  default = "ami-0720cb7af233b0529"
+  default = "ami-0a37aadea3f79d3c3"
 }
 variable "created_by" {
   default = "terraform"
