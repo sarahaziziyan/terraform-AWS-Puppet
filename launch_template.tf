@@ -4,10 +4,14 @@ data "aws_ssm_parameter" "al2023" {
 }
 
 resource "aws_launch_template" "web" {
-  name_prefix   = "web-lt-"
+  name_prefix   = "lt-"
   image_id      = data.aws_ssm_parameter.al2023.value
   instance_type = "t3.nano"
   key_name      = var.key_name
+
+  monitoring {
+    enabled = true
+  }
 
   tag_specifications {
     resource_type = "instance"
