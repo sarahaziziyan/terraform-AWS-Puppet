@@ -39,7 +39,7 @@ resource "aws_vpc_security_group_egress_rule" "alb" {
 
 resource "aws_security_group" "web" {
   name_prefix = "secg-"
-  description = "Web server managed by Ansible"
+  description = "Web server security group for nginx instances behind ALB"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -52,10 +52,26 @@ resource "aws_security_group" "web" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
+  security_group_id            = aws_security_group.web.id
+  description                  = "HTTP from ALB"
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 80
+  to_port                      = 80
+}
+
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
   security_group_id = aws_security_group.web.id
-  description       = "HTTP from ALB"
-  cidr_ipv4         = "0.0.0.0/0"
+  description       = "SSH from EC2 Instance Connect"
+  cidr_ipv4         = "3.0.5.32/29"
   ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
+  from_port         = 22
+  to_port           = 22
+}
+
+resource "aws_vpc_security_group_egress_rule" "web" {
+  security_group_id = aws_security_group.web.id
+  description       = "Allow all outbound traffic for package installation"
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
 }
