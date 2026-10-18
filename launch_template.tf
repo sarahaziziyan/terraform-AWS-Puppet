@@ -15,7 +15,10 @@ resource "aws_launch_template" "web" {
 
   vpc_security_group_ids = [aws_security_group.web.id]
 
-  user_data = base64encode(templatefile("${path.module}/user_data.tpl", {}))
+  user_data = base64encode(templatefile("${path.module}/user_data.tftpl", {
+    site_repo_url    = var.site_repo_url
+    site_repo_branch = var.site_repo_branch
+  }))
 
   tag_specifications {
     resource_type = "instance"

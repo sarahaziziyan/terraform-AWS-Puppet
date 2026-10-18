@@ -10,7 +10,25 @@ echo "=== User Data Started at $(date) ==="
 # Update package cache and install nginx
 echo "Installing nginx..."
 dnf update -y
-dnf install -y nginx
+dnf install -y nginx git
+
+# Deploy the website from GitHub into the nginx web root
+echo "Cloning ${site_repo_url} (branch: ${site_repo_branch})..."
+CLONE_DIR="$(mktemp -d)"
+git clone --depth 1 --branch "${site_repo_branch}" "${site_repo_url}" "$CLONE_DIR"
+
+if [ ! -f "$CLONE_DIR/index.html" ]; then
+    echo "ERROR: index.html not found in repository"
+    exit 1
+fi
+
+# Copy every site file except git metadata (replaces the default nginx page)
+rm -rf "$CLONE_DIR/.git"
+cp -a "$CLONE_DIR"/. /usr/share/nginx/html/
+chown -R nginx:nginx /usr/share/nginx/html
+find /usr/share/nginx/html -type d -exec chmod 755 {} +
+find /usr/share/nginx/html -type f -exec chmod 644 {} +
+rm -rf "$CLONE_DIR"
 
 # Start and enable nginx
 echo "Starting nginx..."
