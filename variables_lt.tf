@@ -19,4 +19,5 @@ variable "site_repo_branch" {
 variable "subnet_id" {
   type        = string
   description = "Subnet to launch the instance in"
+  default     = "subnet-088e08ec462af6a3e"
 }
