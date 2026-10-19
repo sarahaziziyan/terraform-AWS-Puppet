@@ -54,4 +54,37 @@ systemctl status nginx
 echo "Testing HTTP response..."
 curl -s -o /dev/null -w "%%{http_code}" http://localhost:80 || echo "curl failed"
 
+# ---------- Puppet agent bootstrap ----------
+
+echo "Installing puppet-agent..."
+rpm -Uvh https://yum.puppet.com/puppet8-release-el-9.noarch.rpm
+dnf install -y puppet-agent
+
+# Unique certname per instance (ASG instances are throwaway). AL2023 requires IMDSv2.
+IMDS_TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/instance-id)
+
+# Secret that the master's autosign script checks
+mkdir -p /etc/puppetlabs/puppet
+cat > /etc/puppetlabs/puppet/csr_attributes.yaml <<CSR
+custom_attributes:
+  1.2.840.113549.1.9.7: "${puppet_autosign_secret}"
+CSR
+chmod 600 /etc/puppetlabs/puppet/csr_attributes.yaml
+
+/opt/puppetlabs/bin/puppet config set server ${puppet_master_fqdn} --section main
+/opt/puppetlabs/bin/puppet config set certname "$INSTANCE_ID" --section main
+
+# First run: sends the CSR, waits for it to be signed, applies the catalog.
+# Exit code 2 means "changes applied", so don't let set -e treat it as a failure.
+/opt/puppetlabs/bin/puppet agent --test --waitforcert 30 || true
+
+# Keep running every 30 minutes
+systemctl enable --now puppet
+echo "Puppet agent configured as $INSTANCE_ID"
+
+# ---------- end Puppet ----------
+
 echo "=== User Data Completed at $(date) ==="

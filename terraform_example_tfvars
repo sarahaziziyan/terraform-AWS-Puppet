@@ -1,0 +1,13 @@
+key_name  = "keypair_name"
+vpc_id    = "vpc-id"
+subnet_id = "subnet-id"
+
+subnet_ids = [
+  "subnet-id1",
+  "subnet-id2"
+]
+
+asg_min_size         = 3
+asg_desired_capacity = 3
+asg_max_size         = 25
+cpu_threshold        = 80

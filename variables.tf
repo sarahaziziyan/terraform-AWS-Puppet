@@ -8,3 +8,8 @@ variable "admin_ssh_cidr" {
   default     = "103.171.42.9/32"
 }
 
+variable "puppet_autosign_secret" {
+  type      = string
+  sensitive = true
+}
+
