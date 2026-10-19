@@ -12,16 +12,6 @@ echo "Installing nginx..."
 dnf update -y
 dnf install -y nginx git
 
-# Deploy the website from GitHub into the nginx web root
-echo "Cloning ${site_repo_url} (branch: ${site_repo_branch})..."
-CLONE_DIR="$(mktemp -d)"
-git clone --depth 1 --branch "${site_repo_branch}" "${site_repo_url}" "$CLONE_DIR"
-
-if [ ! -f "$CLONE_DIR/index.html" ]; then
-    echo "ERROR: index.html not found in repository"
-    exit 1
-fi
-
 # Copy every site file except git metadata (replaces the default nginx page)
 rm -rf "$CLONE_DIR/.git"
 cp -a "$CLONE_DIR"/. /usr/share/nginx/html/
@@ -76,6 +66,13 @@ chmod 600 /etc/puppetlabs/puppet/csr_attributes.yaml
 
 /opt/puppetlabs/bin/puppet config set server ${puppet_master_fqdn} --section main
 /opt/puppetlabs/bin/puppet config set certname "$INSTANCE_ID" --section main
+
+# Facts that Puppet reads on this instance (values come from Terraform)
+mkdir -p /etc/puppetlabs/facter/facts.d
+cat > /etc/puppetlabs/facter/facts.d/site.txt <<FACTS
+site_repo_url=${site_repo_url}
+site_repo_branch=${site_repo_branch}
+FACTS
 
 # First run: sends the CSR, waits for it to be signed, applies the catalog.
 # Exit code 2 means "changes applied", so don't let set -e treat it as a failure.

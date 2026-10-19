@@ -1,0 +1,95 @@
+#!/bin/bash
+set -euxo pipefail
+cd /tmp
+wget https://apt.puppet.com/puppet8-release-jammy.deb
+dpkg -i puppet8-release-jammy.deb
+apt-get update
+apt-get install -y puppetserver
+
+# Names must be set BEFORE the first start (the CA and server certs are created then)
+/opt/puppetlabs/bin/puppet config set certname ${puppet_master_fqdn} --section main
+/opt/puppetlabs/bin/puppet config set server ${puppet_master_fqdn} --section main
+/opt/puppetlabs/bin/puppet config set dns_alt_names puppet,${puppet_master_fqdn} --section server
+
+# Autosign script (secret comes from Terraform)
+cat > /etc/puppetlabs/puppet/autosign.sh <<'EOF'
+#!/bin/bash
+EXPECTED="${puppet_autosign_secret}"
+CSR=$(cat)
+GOT=$(echo "$CSR" | /opt/puppetlabs/puppet/bin/openssl req -noout -text \
+      | grep -E 'challengePassword[[:space:]]*:' | sed 's/.*://' | tr -d '[:space:]')
+[ "$GOT" = "$EXPECTED" ]
+EOF
+chown puppet:puppet /etc/puppetlabs/puppet/autosign.sh
+chmod 750 /etc/puppetlabs/puppet/autosign.sh
+/opt/puppetlabs/bin/puppet config set autosign /etc/puppetlabs/puppet/autosign.sh --section server
+
+# Module for Git checkouts
+/opt/puppetlabs/bin/puppet module install puppetlabs-vcsrepo --environment production
+
+# Puppet code
+CODE=/etc/puppetlabs/code/environments/production
+mkdir -p $CODE/modules/profile/manifests
+
+cat > $CODE/modules/profile/manifests/website.pp <<'EOF'
+class profile::website (
+  String $repo_url,
+  String $branch  = 'main',
+  String $src_dir = '/opt/website-src',
+) {
+  package { ['nginx', 'git']:
+    ensure => installed,
+  }
+
+  vcsrepo { $src_dir:
+    ensure   => latest,
+    provider => git,
+    source   => $repo_url,
+    revision => $branch,
+    require  => Package['git'],
+  }
+
+  exec { 'website-index-check':
+    command => '/bin/false',
+    unless  => "/usr/bin/test -f $${src_dir}/index.html",
+    require => Vcsrepo[$src_dir],
+  }
+
+  file { '/usr/share/nginx/html':
+    ensure  => directory,
+    source  => "file://$${src_dir}",
+    recurse => true,
+    purge   => true,
+    force   => true,
+    ignore  => '.git',
+    owner   => 'nginx',
+    group   => 'nginx',
+    mode    => '0644',
+    require => [Package['nginx'], Exec['website-index-check']],
+  }
+
+  service { 'nginx':
+    ensure  => running,
+    enable  => true,
+    require => Package['nginx'],
+  }
+}
+EOF
+
+cat > $CODE/manifests/site.pp <<'EOF'
+node /^i-[0-9a-f]+$/ {
+  file { '/etc/puppet_managed.txt':
+    ensure  => file,
+    content => "Managed by Puppet\n",
+  }
+
+  class { 'profile::website':
+    repo_url => $facts['site_repo_url'],
+    branch   => $facts['site_repo_branch'],
+  }
+}
+
+node default { }
+EOF
+
+systemctl enable --now puppetserver

@@ -55,26 +55,14 @@ resource "aws_instance" "puppet_master" {
 
   root_block_device { volume_size = 30 }
 
-  user_data = <<-EOF
-    #!/bin/bash
-    set -euxo pipefail
-    cd /tmp
-    wget https://apt.puppet.com/puppet8-release-jammy.deb
-    dpkg -i puppet8-release-jammy.deb
-    apt-get update
-    apt-get install -y puppetserver
+  user_data = templatefile("${path.module}/puppet_master.tftpl", {
+    puppet_master_fqdn     = local.puppet_master_fqdn
+    puppet_autosign_secret = var.puppet_autosign_secret
+  })
 
-    # Set names BEFORE first start (the CA and server certs are created then)
-    /opt/puppetlabs/bin/puppet config set certname ${local.puppet_master_fqdn} --section main
-    /opt/puppetlabs/bin/puppet config set server ${local.puppet_master_fqdn} --section main
-    /opt/puppetlabs/bin/puppet config set dns_alt_names puppet,${local.puppet_master_fqdn} --section server
-
-    # Reduce JVM heap if you use a small instance (default is 2g)
-    sed -i 's/-Xms2g -Xmx2g/-Xms1g -Xmx1g/' /etc/default/puppetserver
-
-    systemctl enable --now puppetserver
-  EOF
-
+  lifecycle {
+    ignore_changes = [user_data]
+  }
   tags = { Name = "puppet-master" }
 }
 

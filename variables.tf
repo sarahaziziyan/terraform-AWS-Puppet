@@ -13,3 +13,11 @@ variable "puppet_autosign_secret" {
   sensitive = true
 }
 
+variable "site_repo" {
+  type = string
+}
+
+variable "site_repo_branch" {
+  type = string
+}
+

@@ -10,12 +10,6 @@ variable "site_repo_url" {
   default     = "https://github.com/sarahaziziyan/adhd-helper.git"
 }
 
-variable "site_repo_branch" {
-  type        = string
-  description = "Branch of the website repository to deploy"
-  default     = "main"
-}
-
 variable "subnet_id" {
   type        = string
   description = "Subnet to launch the instance in"
