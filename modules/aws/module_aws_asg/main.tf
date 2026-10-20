@@ -4,16 +4,16 @@ resource "aws_autoscaling_group" "web" {
 
   vpc_zone_identifier = var.subnet_ids
 
-  min_size         = var.asg_min_size
-  desired_capacity = var.asg_desired_capacity
-  max_size         = var.asg_max_size
+  min_size         = var.min_size
+  desired_capacity = var.desired_capacity
+  max_size         = var.max_size
 
   launch_template {
-    id      = aws_launch_template.web.id
+    id      = var.launch_template_id
     version = "$Latest"
   }
 
-  target_group_arns = [aws_lb_target_group.web.arn]
+  target_group_arns = var.target_group_arns
 
   health_check_type         = "ELB"
   health_check_grace_period = 180
@@ -36,7 +36,7 @@ resource "aws_autoscaling_group" "web" {
   }
 }
 
-# Scaling Policy - Scale out when CPU > 60%
+# Scaling Policy - Scale out when CPU > threshold
 resource "aws_autoscaling_policy" "cpu_scale_out" {
   name               = "cpu-scale-out"
   scaling_adjustment = 1
@@ -64,25 +64,4 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
 
   alarm_description = "Scale out when CPU utilization exceeds ${var.cpu_threshold}%"
   alarm_actions     = [aws_autoscaling_policy.cpu_scale_out.arn]
-}
-
-# Output ASG Name
-output "asg_name" {
-  description = "Name of the Auto Scaling Group"
-  value       = aws_autoscaling_group.web.name
-}
-
-output "asg_min_size" {
-  description = "Minimum size of the Auto Scaling Group"
-  value       = aws_autoscaling_group.web.min_size
-}
-
-output "asg_desired_capacity" {
-  description = "Desired capacity of the Auto Scaling Group"
-  value       = aws_autoscaling_group.web.desired_capacity
-}
-
-output "asg_max_size" {
-  description = "Maximum size of the Auto Scaling Group"
-  value       = aws_autoscaling_group.web.max_size
 }

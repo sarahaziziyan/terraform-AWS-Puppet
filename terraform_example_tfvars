@@ -1,3 +1,4 @@
+region    = "region"
 key_name  = "keypair_name"
 vpc_id    = "vpc-id"
 subnet_id = "subnet-id"
@@ -14,5 +15,5 @@ cpu_threshold        = 80
 
 puppet_autosign_secret = "secret for signing"
 
-site_repo = "https://github.com/yourrepo.git"
+site_repo_url    = "https://github.com/yourrepo.git"
 site_repo_branch = "main"

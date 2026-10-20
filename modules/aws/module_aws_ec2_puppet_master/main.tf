@@ -15,19 +15,10 @@ resource "aws_security_group" "puppet_master" {
 resource "aws_vpc_security_group_ingress_rule" "puppet_master_puppet" {
   security_group_id            = aws_security_group.puppet_master.id
   description                  = "Puppet agent traffic from web nodes"
-  referenced_security_group_id = aws_security_group.web.id
+  referenced_security_group_id = var.web_security_group_id
   ip_protocol                  = "tcp"
   from_port                    = 8140
   to_port                      = 8140
-}
-
-resource "aws_vpc_security_group_ingress_rule" "puppet_master_ssh" {
-  security_group_id = aws_security_group.puppet_master.id
-  description       = "SSH from admin IP"
-  cidr_ipv4         = var.admin_ssh_cidr
-  ip_protocol       = "tcp"
-  from_port         = 22
-  to_port           = 22
 }
 
 resource "aws_vpc_security_group_ingress_rule" "puppet_master_instance_connect" {
@@ -56,7 +47,7 @@ resource "aws_instance" "puppet_master" {
   root_block_device { volume_size = 30 }
 
   user_data = templatefile("${path.module}/puppet_master.tftpl", {
-    puppet_master_fqdn     = local.puppet_master_fqdn
+    puppet_master_fqdn     = var.puppet_master_fqdn
     puppet_autosign_secret = var.puppet_autosign_secret
   })
 
@@ -64,8 +55,4 @@ resource "aws_instance" "puppet_master" {
     ignore_changes = [user_data]
   }
   tags = { Name = "puppet-master" }
-}
-
-output "puppet_master_private_ip" {
-  value = aws_instance.puppet_master.private_ip
 }

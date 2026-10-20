@@ -2,7 +2,7 @@
 resource "aws_lb" "web" {
   name_prefix     = "alb-"
   subnets         = var.subnet_ids
-  security_groups = [aws_security_group.alb.id]
+  security_groups = var.security_group_ids
 
   tags = {
     Name = "web-alb"
@@ -43,20 +43,4 @@ resource "aws_lb_listener" "http" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.web.arn
   }
-}
-
-# Output ALB DNS Name
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = aws_lb.web.dns_name
-}
-
-output "alb_zone_id" {
-  description = "Zone ID of the Application Load Balancer"
-  value       = aws_lb.web.zone_id
-}
-
-output "target_group_arn" {
-  description = "ARN of the Target Group"
-  value       = aws_lb_target_group.web.arn
 }

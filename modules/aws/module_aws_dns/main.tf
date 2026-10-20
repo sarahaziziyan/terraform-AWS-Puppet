@@ -1,7 +1,3 @@
-locals {
-  puppet_master_fqdn = "puppet.internal.puppet-server.com"
-}
-
 resource "aws_route53_zone" "internal" {
   name = "internal.puppet-server.com"
 
@@ -12,8 +8,8 @@ resource "aws_route53_zone" "internal" {
 
 resource "aws_route53_record" "puppet" {
   zone_id = aws_route53_zone.internal.zone_id
-  name    = local.puppet_master_fqdn
+  name    = var.puppet_master_fqdn
   type    = "A"
   ttl     = 60
-  records = [aws_instance.puppet_master.private_ip]
+  records = [var.puppet_master_private_ip]
 }

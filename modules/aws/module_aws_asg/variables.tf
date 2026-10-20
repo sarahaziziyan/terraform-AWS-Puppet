@@ -1,29 +1,29 @@
-variable "vpc_id" {
-  type        = string
-  description = "VPC ID for the ALB and ASG"
-  default     = "vpc-00cb260ae54bf57d7"
-}
-
 variable "subnet_ids" {
   type        = list(string)
-  description = "Subnet IDs for the ALB and ASG (at least two AZs)"
-  default = [
-    "subnet-088e08ec462af6a3e",
-    "subnet-080c39aa888430837"
-  ]
+  description = "Subnet IDs for the ASG (at least two AZs)"
 }
 
-variable "asg_min_size" {
+variable "launch_template_id" {
+  type        = string
+  description = "ID of the launch template used by the ASG"
+}
+
+variable "target_group_arns" {
+  type        = list(string)
+  description = "Target group ARNs the ASG registers instances with"
+}
+
+variable "min_size" {
   type        = number
   description = "Minimum number of instances in ASG"
 }
 
-variable "asg_desired_capacity" {
+variable "desired_capacity" {
   type        = number
   description = "Desired number of instances in ASG"
 }
 
-variable "asg_max_size" {
+variable "max_size" {
   type        = number
   description = "Maximum number of instances in ASG"
 }

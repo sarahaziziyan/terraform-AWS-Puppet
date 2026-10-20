@@ -13,12 +13,12 @@ resource "aws_launch_template" "web" {
     enabled = true
   }
 
-  vpc_security_group_ids = [aws_security_group.web.id]
+  vpc_security_group_ids = var.security_group_ids
 
   user_data = base64encode(templatefile("${path.module}/user_data_nodes.tftpl", {
     site_repo_url          = var.site_repo_url
     site_repo_branch       = var.site_repo_branch
-    puppet_master_fqdn     = local.puppet_master_fqdn
+    puppet_master_fqdn     = var.puppet_master_fqdn
     puppet_autosign_secret = var.puppet_autosign_secret
   }))
 
