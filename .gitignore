@@ -1,6 +1,10 @@
 # Local .terraform directories (includes downloaded providers/modules - can be large binaries)
 .terraform/
 
+# Lock files created by `terraform init` inside modules when running their tests.
+# Reusable modules do not ship a lock file; only the root one is committed.
+modules/**/.terraform.lock.hcl
+
 # .tfstate files
 *.tfstate
 *.tfstate.*

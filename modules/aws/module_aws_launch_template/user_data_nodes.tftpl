@@ -12,14 +12,6 @@ echo "Installing nginx..."
 dnf update -y
 dnf install -y nginx git
 
-# Copy every site file except git metadata (replaces the default nginx page)
-rm -rf "$CLONE_DIR/.git"
-cp -a "$CLONE_DIR"/. /usr/share/nginx/html/
-chown -R nginx:nginx /usr/share/nginx/html
-find /usr/share/nginx/html -type d -exec chmod 755 {} +
-find /usr/share/nginx/html -type f -exec chmod 644 {} +
-rm -rf "$CLONE_DIR"
-
 # Start and enable nginx
 echo "Starting nginx..."
 systemctl start nginx
