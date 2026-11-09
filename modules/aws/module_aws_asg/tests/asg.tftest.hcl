@@ -52,7 +52,7 @@ run "group_uses_given_template_subnets_and_targets" {
 
   assert {
     condition     = aws_autoscaling_group.web.launch_template[0].version == "$Latest"
-    error_message = "The ASG must track the $Latest launch template version so template changes roll out."
+    error_message = "The ASG must use the $Latest launch template version so new instances get the newest template."
   }
 
   assert {

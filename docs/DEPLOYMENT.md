@@ -1,0 +1,57 @@
+# Deployment
+
+Deployment is manual, with Terraform, into a single environment. There is no CI/CD pipeline.
+
+## First deployment
+
+1. Set the S3 backend values in `provider.tf`. The bucket must already exist; enable versioning and encryption on it.
+2. Run `cp terraform_example_tfvars terraform.tfvars` and fill in the values.
+3. Run `terraform init`, `terraform plan`, then `terraform apply`.
+4. Wait 5 to 10 minutes, then run the integration checks in [TESTING.md](TESTING.md).
+
+## Updating
+
+Always read `terraform plan` before applying.
+
+| What changed | How to deploy | Effect |
+|---|---|---|
+| Website content | Push to the branch in `site_repo_branch` | Nodes pick it up on their next Puppet run (up to 30 minutes). No Terraform run |
+| Web node setup (user data, instance type) | `terraform apply`, then start an instance refresh (below) | Apply creates a new launch template version. Running nodes are **not** replaced until you start a refresh |
+| ASG sizes or CPU threshold | Edit `terraform.tfvars`, then `terraform apply` | Applied in place. This also resets the current number of nodes to `asg_desired_capacity` |
+| Security groups, load balancer | `terraform apply` | Security groups are replaced create-before-destroy |
+| Puppet code or master bootstrap script | Edit the files on the master directly | Terraform ignores changes to the master's user data, so `apply` does nothing |
+
+### Roll a launch template change out to running nodes
+
+```bash
+aws autoscaling start-instance-refresh --auto-scaling-group-name "$(terraform output -raw asg_name)"
+```
+
+The refresh uses the settings in the ASG module: rolling, keeping at least 50% of nodes healthy.
+
+### Replacing the Puppet master
+
+Avoid it. A new master has a new certificate authority, so every node must be replaced afterwards (start an instance refresh). To do it on purpose:
+
+```bash
+terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet_master
+```
+
+**Watch for this in every plan:** if the plan wants to replace `aws_instance.puppet_master` and you did not ask for it, a newer Ubuntu AMI has been published. Do not apply. See issue 1 in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
+## Rollback
+
+- **Infrastructure:** revert the commit and apply again. For launch template changes, also start an instance refresh.
+- **Website content:** revert in the site repository.
+- **State problems:** restore an earlier version of the state object in S3. This needs bucket versioning.
+
+## More than one environment
+
+Not supported yet. To add environments, use one state key and one `.tfvars` file per environment. The `internal.puppet-server.com` domain, the `puppet-master` security group name and the `Name` tags are hard-coded and would need to vary per environment.
+
+## Suggested CI/CD (not implemented)
+
+1. On pull request: `terraform fmt -check -recursive`, `./run_tests.sh`, a linter (`tflint`, `checkov` or `trivy config .`), then `terraform plan` posted to the pull request.
+2. On merge to `main`: apply to staging.
+3. To production: manual approval, then apply the same commit.
+4. Use short-lived credentials (OIDC) instead of stored access keys, and turn on state locking (`use_lockfile = true`, Terraform 1.10 or newer).
