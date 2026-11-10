@@ -37,7 +37,9 @@ Avoid it. A new master has a new certificate authority, so every node must be re
 terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet_master
 ```
 
-**Watch for this in every plan:** if the plan wants to replace `aws_instance.puppet_master` and you did not ask for it, a newer Ubuntu AMI has been published. Do not apply. See issue 1 in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+Terraform ignores changes to the master's AMI and user data, so a newer Ubuntu image or an edited bootstrap script never replaces it. The master therefore keeps the image it was first built from: patch it in place with `apt`.
+
+If a plan ever wants to replace `aws_instance.puppet_master` and you did not ask for it, do not apply. Find out which attribute forces the replacement first.
 
 ## Rollback
 

@@ -69,7 +69,7 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 | **Site repo/branch passed as Puppet facts** | Keeps a single source of truth in `terraform.tfvars`; Puppet code stays generic. |
 | **S3 remote backend** | Shared, durable state instead of a local file. |
 | **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. SSH is limited to the EC2 Instance Connect range. |
-| **`ignore_changes = [user_data]` on the master** | Prevents a template edit from destroying and rebuilding the Puppet server (and its CA). It does not protect against a new AMI (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md), issue 1). |
+| **`ignore_changes = [user_data, ami]` on the master** | Prevents a bootstrap script edit or a newly published Ubuntu image from destroying and rebuilding the Puppet server (and its CA). |
 | **Sensitive variable for the autosign secret** | Keeps it out of plan output. |
 
 ## Security notes

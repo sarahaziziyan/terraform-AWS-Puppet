@@ -52,7 +52,7 @@ resource "aws_instance" "puppet_master" {
   })
 
   lifecycle {
-    ignore_changes = [user_data]
+    ignore_changes = [user_data, ami]
   }
   tags = { Name = "puppet-master" }
 }

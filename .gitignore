@@ -58,3 +58,7 @@ id_rsa*
 .vscode/
 .idea/
 *.swp
+
+# Claude
+.claude
+CLAUDE.md
