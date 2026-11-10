@@ -70,6 +70,7 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 | **S3 remote backend** | Shared, durable state instead of a local file. |
 | **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. SSH is limited to the EC2 Instance Connect range. |
 | **`ignore_changes = [user_data, ami]` on the master** | Prevents a bootstrap script edit or a newly published Ubuntu image from destroying and rebuilding the Puppet server (and its CA). |
+| **`ignore_changes = [desired_capacity]` on the ASG** | The scaling policy owns the running node count. Without this, every apply would reset the fleet to `asg_desired_capacity` and undo scale-out. |
 | **Sensitive variable for the autosign secret** | Keeps it out of plan output. |
 
 ## Security notes

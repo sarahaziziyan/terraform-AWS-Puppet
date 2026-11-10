@@ -23,7 +23,7 @@ See the table in the [README](../README.md#variables). All are required; none ha
 | `alb_zone_id` | Hosted zone ID of the ALB (for alias records) |
 | `target_group_arn` | Target group ARN |
 | `asg_name` | Auto Scaling Group name |
-| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | ASG sizes as last applied by Terraform |
+| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | ASG minimum and maximum as last applied by Terraform; desired capacity as last read from AWS (the scaling policy changes it) |
 
 ## Module interfaces
 

@@ -33,6 +33,10 @@ resource "aws_autoscaling_group" "web" {
 
   lifecycle {
     create_before_destroy = true
+    # The scaling policy changes desired_capacity at runtime. Without this,
+    # every apply would reset the fleet to var.desired_capacity and undo scale-out.
+    # var.desired_capacity is therefore only the initial size when the ASG is created.
+    ignore_changes = [desired_capacity]
   }
 }
 

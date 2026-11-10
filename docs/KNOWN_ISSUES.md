@@ -2,14 +2,13 @@
 
 Open problems found by reviewing the code. Items marked **(verify)** are likely but were not confirmed on a real deployment. Issue numbers are stable: a fixed issue is removed and its number is not reused.
 
-Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `ignore_changes`).
+Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `ignore_changes`), 3 (`terraform apply` undid scale-out; the ASG now has `ignore_changes = [desired_capacity]`).
 
 ## High: can break the platform
 
 | # | Issue | Where | Fix |
 |---|---|---|---|
 | 2 | **Launch template changes do not roll out to running nodes.** The ASG uses `version = "$Latest"`. That string never changes, so the `instance_refresh` block is never triggered. Only instances launched later get the new template. | `module_aws_asg/main.tf` | Pass the launch template's `latest_version` into the ASG module and use it as `version`. Until then, start a refresh by hand (see [DEPLOYMENT.md](DEPLOYMENT.md)). |
-| 3 | **`terraform apply` undoes scale-out.** Terraform manages `desired_capacity`, and the scaling policy also changes it. Any later apply resets the fleet to the value in `terraform.tfvars`. | `module_aws_asg/main.tf` | Add `ignore_changes = [desired_capacity]` to the ASG. |
 | 4 | **Nodes serve the default nginx page until Puppet succeeds, and stay "healthy" if it never does.** nginx starts before the first Puppet run, so the health check passes on the default page. The first run ends with `|| true`, so a node that fails to enrol is never replaced. | `module_aws_launch_template/user_data_nodes.tftpl` | Start nginx only through Puppet, or make the health check request a file that exists only in the site repository. |
 
 ## Medium: security

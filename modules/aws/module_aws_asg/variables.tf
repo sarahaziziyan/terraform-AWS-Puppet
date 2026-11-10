@@ -20,7 +20,7 @@ variable "min_size" {
 
 variable "desired_capacity" {
   type        = number
-  description = "Desired number of instances in ASG"
+  description = "Number of instances when the ASG is first created. Ignored afterwards: the scaling policy owns the running count"
 }
 
 variable "max_size" {

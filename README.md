@@ -52,7 +52,7 @@ Wait 5 to 10 minutes after `apply` while the servers set themselves up.
 | `puppet_autosign_secret` | Shared secret that lets new web servers register with Puppet automatically. Keep it private |
 | `site_repo_url` | Git repository that contains your website |
 | `site_repo_branch` | Branch to deploy |
-| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | Minimum, normal and maximum number of web servers |
+| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | Minimum, starting and maximum number of web servers. The starting number applies only when the group is first created |
 | `cpu_threshold` | Average CPU % that adds one server |
 
 ## Use it

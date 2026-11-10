@@ -17,7 +17,7 @@ Always read `terraform plan` before applying.
 |---|---|---|
 | Website content | Push to the branch in `site_repo_branch` | Nodes pick it up on their next Puppet run (up to 30 minutes). No Terraform run |
 | Web node setup (user data, instance type) | `terraform apply`, then start an instance refresh (below) | Apply creates a new launch template version. Running nodes are **not** replaced until you start a refresh |
-| ASG sizes or CPU threshold | Edit `terraform.tfvars`, then `terraform apply` | Applied in place. This also resets the current number of nodes to `asg_desired_capacity` |
+| ASG sizes or CPU threshold | Edit `terraform.tfvars`, then `terraform apply` | Minimum, maximum and threshold are applied in place. `asg_desired_capacity` is used only when the ASG is first created; later changes to it are ignored so that apply does not undo scale-out. To resize a running fleet, change `asg_min_size`/`asg_max_size` or run `aws autoscaling set-desired-capacity` |
 | Security groups, load balancer | `terraform apply` | Security groups are replaced create-before-destroy |
 | Puppet code or master bootstrap script | Edit the files on the master directly | Terraform ignores changes to the master's user data, so `apply` does nothing |
 

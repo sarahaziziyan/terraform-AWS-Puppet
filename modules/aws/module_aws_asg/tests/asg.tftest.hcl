@@ -41,6 +41,28 @@ run "sizes_pass_through" {
   }
 }
 
+# Regression test for known issue 3: the scaling policy owns desired_capacity after creation.
+# The group already exists from the run above, so a different input must not resize it,
+# otherwise every apply would undo scale-out. min_size and max_size must still follow the inputs.
+run "apply_does_not_reset_desired_capacity" {
+  command = apply
+
+  variables {
+    desired_capacity = 3
+    max_size         = 5
+  }
+
+  assert {
+    condition     = aws_autoscaling_group.web.desired_capacity == 2
+    error_message = "desired_capacity must be ignored after creation (lifecycle ignore_changes), so apply cannot undo scale-out."
+  }
+
+  assert {
+    condition     = aws_autoscaling_group.web.max_size == 5
+    error_message = "max_size must still follow the module input on an existing group."
+  }
+}
+
 # The group must launch from the given template, in the given subnets, behind the given target group.
 run "group_uses_given_template_subnets_and_targets" {
   command = apply
