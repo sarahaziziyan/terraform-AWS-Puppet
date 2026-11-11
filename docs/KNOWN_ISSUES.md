@@ -2,7 +2,7 @@
 
 Open problems found by reviewing the code. Items marked **(verify)** are likely but were not confirmed on a real deployment. Issue numbers are stable: a fixed issue is removed and its number is not reused.
 
-Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `ignore_changes`), 3 (`terraform apply` undid scale-out; the ASG now has `ignore_changes = [desired_capacity]`).
+Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `ignore_changes`), 3 (`terraform apply` undid scale-out; the ASG now has `ignore_changes = [desired_capacity]`), 6 (IMDSv2 was not enforced; the master and the launch template now set `http_tokens = "required"`).
 
 ## High: can break the platform
 
@@ -16,7 +16,6 @@ Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `i
 | # | Issue | Where | Fix |
 |---|---|---|---|
 | 5 | **The autosign secret is stored in plain text** in the Terraform state, in the master's user data and in every node's user data. Any process on a node can read user data from the metadata service. | Both `.tftpl` files | Store the secret in SSM Parameter Store or Secrets Manager and read it at boot through an instance role. |
-| 6 | **IMDSv2 is not enforced.** Neither the master nor the launch template sets `metadata_options`. | `module_aws_ec2_puppet_master/main.tf`, `module_aws_launch_template/main.tf` | Set `http_tokens = "required"` on both. |
 | 7 | **Disks are not explicitly encrypted.** Encryption depends on the account's default EBS setting. | Same two files | Set `encrypted = true` on the master's root volume and in the launch template. |
 | 8 | **The SSH range is correct only in `ap-southeast-1`.** `3.0.5.32/29` is that region's EC2 Instance Connect range, but `region` is a variable. | `module_aws_security_groups/main.tf`, `module_aws_ec2_puppet_master/main.tf` | Look the range up with the `aws_ec2_managed_prefix_list` data source, or make it a variable. |
 | 9 | **The state backend has no locking and no explicit encryption.** Two applies at once can corrupt the state. | `provider.tf` | Add `use_lockfile = true` and `encrypt = true`. |

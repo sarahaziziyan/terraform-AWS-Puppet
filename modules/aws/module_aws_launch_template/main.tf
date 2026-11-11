@@ -13,6 +13,14 @@ resource "aws_launch_template" "web" {
     enabled = true
   }
 
+  # IMDSv2 only: blocks SSRF-style reads of user data (which holds the autosign secret).
+  # The bootstrap script already requests a token before reading metadata.
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+  }
+
   vpc_security_group_ids = var.security_group_ids
 
   user_data = base64encode(templatefile("${path.module}/user_data_nodes.tftpl", {

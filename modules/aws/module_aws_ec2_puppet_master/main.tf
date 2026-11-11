@@ -46,6 +46,13 @@ resource "aws_instance" "puppet_master" {
 
   root_block_device { volume_size = 30 }
 
+  # IMDSv2 only: blocks SSRF-style reads of user data (which holds the autosign secret).
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+  }
+
   user_data = templatefile("${path.module}/puppet_master.tftpl", {
     puppet_master_fqdn     = var.puppet_master_fqdn
     puppet_autosign_secret = var.puppet_autosign_secret

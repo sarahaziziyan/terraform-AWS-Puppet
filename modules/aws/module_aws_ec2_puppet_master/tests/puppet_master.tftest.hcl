@@ -96,6 +96,25 @@ run "instance_is_sized_and_placed_correctly" {
   }
 }
 
+# Known issue 6: the metadata service must require IMDSv2 session tokens,
+# so an SSRF bug cannot read the user data (and the autosign secret) with a plain GET.
+run "imdsv2_is_required" {
+  command = apply
+
+  assert {
+    condition = (
+      aws_instance.puppet_master.metadata_options[0].http_endpoint == "enabled" &&
+      aws_instance.puppet_master.metadata_options[0].http_tokens == "required"
+    )
+    error_message = "The Puppet master must require IMDSv2 (http_tokens = \"required\")."
+  }
+
+  assert {
+    condition     = aws_instance.puppet_master.metadata_options[0].http_put_response_hop_limit == 1
+    error_message = "The IMDS hop limit must be 1 so tokens cannot be fetched from beyond the instance."
+  }
+}
+
 # The AMI lookup must stay pinned to Canonical's Ubuntu 22.04, which the bootstrap script assumes.
 run "ami_lookup_is_canonical_ubuntu_jammy" {
   command = apply

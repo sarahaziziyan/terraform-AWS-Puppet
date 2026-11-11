@@ -176,6 +176,27 @@ run "user_data_does_not_use_undefined_clone_dir" {
   }
 }
 
+# Known issue 6: nodes must require IMDSv2 session tokens, so an SSRF bug
+# cannot read the user data (and the autosign secret) with a plain GET.
+run "imdsv2_is_required" {
+  command = apply
+
+  assert {
+    condition = (
+      aws_launch_template.web.metadata_options[0].http_endpoint == "enabled" &&
+      aws_launch_template.web.metadata_options[0].http_tokens == "required" &&
+      aws_launch_template.web.metadata_options[0].http_put_response_hop_limit == 1
+    )
+    error_message = "The launch template must require IMDSv2 (http_tokens = \"required\", hop limit 1)."
+  }
+
+  # The bootstrap script must keep using the token flow, or it breaks once IMDSv1 is off.
+  assert {
+    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "X-aws-ec2-metadata-token:")
+    error_message = "The bootstrap script must send an IMDSv2 token when reading instance metadata."
+  }
+}
+
 # The ASG module needs this output.
 run "output_exposes_template_id" {
   command = apply
