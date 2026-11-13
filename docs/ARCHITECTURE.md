@@ -78,6 +78,7 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 - `*.tfvars`, state files and keys are git-ignored. State in S3 contains the autosign secret in plain text, so restrict and encrypt that bucket.
 - The secret is also present in instance user data. Anyone with `ec2:DescribeInstanceAttribute` or instance access can read it; rotate it if exposed.
 - The master and the web nodes require IMDSv2 (`http_tokens = "required"`, hop limit 1). A plain GET to the metadata service, as an SSRF bug would send, cannot read user data or credentials. Any process on the instance can still get a token, so this does not protect against code already running there.
+- The root volumes of the master (which holds the Puppet CA key) and the web nodes are encrypted explicitly with the AWS-managed EBS key, whatever the account's default.
 - Traffic is unencrypted HTTP. Add an HTTPS listener with an ACM certificate before real use.
 
 ## Limits and trade-offs

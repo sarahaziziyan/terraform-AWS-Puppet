@@ -80,6 +80,12 @@ run "instance_is_sized_and_placed_correctly" {
     error_message = "The root volume must be 30 GB."
   }
 
+  # Known issue 7: the disk holds the Puppet CA's private key.
+  assert {
+    condition     = aws_instance.puppet_master.root_block_device[0].encrypted == true
+    error_message = "The root volume must be encrypted explicitly, not left to the account's EBS default."
+  }
+
   assert {
     condition     = aws_instance.puppet_master.subnet_id == var.subnet_id && aws_instance.puppet_master.key_name == var.key_name
     error_message = "The instance must use the subnet and key pair passed to the module."

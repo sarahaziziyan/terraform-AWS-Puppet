@@ -44,7 +44,11 @@ resource "aws_instance" "puppet_master" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.puppet_master.id]
 
-  root_block_device { volume_size = 30 }
+  # Encrypted explicitly: the disk holds the Puppet CA's private key.
+  root_block_device {
+    volume_size = 30
+    encrypted   = true
+  }
 
   # IMDSv2 only: blocks SSRF-style reads of user data (which holds the autosign secret).
   metadata_options {

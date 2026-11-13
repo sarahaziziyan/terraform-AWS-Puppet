@@ -23,6 +23,15 @@ resource "aws_launch_template" "web" {
 
   vpc_security_group_ids = var.security_group_ids
 
+  # Encrypt the root volume explicitly instead of relying on the account's EBS default.
+  # /dev/xvda is the root device name of the Amazon Linux 2023 AMI.
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      encrypted = true
+    }
+  }
+
   user_data = base64encode(templatefile("${path.module}/user_data_nodes.tftpl", {
     site_repo_url          = var.site_repo_url
     site_repo_branch       = var.site_repo_branch

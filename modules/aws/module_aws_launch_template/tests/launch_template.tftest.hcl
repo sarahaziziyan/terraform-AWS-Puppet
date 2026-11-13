@@ -197,6 +197,19 @@ run "imdsv2_is_required" {
   }
 }
 
+# Known issue 7: node disks must be encrypted explicitly, not left to the account's EBS default.
+run "root_volume_is_encrypted" {
+  command = apply
+
+  assert {
+    condition = anytrue([
+      for m in aws_launch_template.web.block_device_mappings :
+      m.device_name == "/dev/xvda" && m.ebs[0].encrypted == "true"
+    ])
+    error_message = "The launch template must map the Amazon Linux 2023 root device (/dev/xvda) with encrypted = true."
+  }
+}
+
 # The ASG module needs this output.
 run "output_exposes_template_id" {
   command = apply
