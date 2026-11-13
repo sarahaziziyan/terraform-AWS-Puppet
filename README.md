@@ -9,7 +9,8 @@ Unhealthy servers are replaced automatically, and one server is added when avera
 
 ## What you need
 
-- Terraform 1.7 or newer
+- Terraform 1.7 or newer (tested with 1.16.4). This is enforced by `required_version = ">= 1.7"` in `provider.tf` and in each module, so an older version stops with an error. Check yours with `terraform version`
+- AWS provider 6.x (`~> 6.0`), installed automatically by `terraform init`
 - AWS credentials that can create EC2, load balancer, auto scaling, Route 53 and CloudWatch resources (`aws sts get-caller-identity` should work)
 - An existing VPC with at least two subnets in different availability zones
 - An existing EC2 key pair

@@ -2,7 +2,7 @@
 
 Open problems found by reviewing the code. Items marked **(verify)** are likely but were not confirmed on a real deployment. Issue numbers are stable: a fixed issue is removed and its number is not reused.
 
-Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `ignore_changes`), 3 (`terraform apply` undid scale-out; the ASG now has `ignore_changes = [desired_capacity]`), 6 (IMDSv2 was not enforced; the master and the launch template now set `http_tokens = "required"`), 7 (disks were not explicitly encrypted; the master's root volume and the launch template now set `encrypted = true`).
+Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `ignore_changes`), 3 (`terraform apply` undid scale-out; the ASG now has `ignore_changes = [desired_capacity]`), 6 (IMDSv2 was not enforced; the master and the launch template now set `http_tokens = "required"`), 7 (disks were not explicitly encrypted; the master's root volume and the launch template now set `encrypted = true`), 18 (no Terraform version constraint; the root and every module now require `>= 1.7`).
 
 ## High: can break the platform
 
@@ -31,7 +31,6 @@ Fixed so far: 1 (a new Ubuntu AMI replaced the Puppet master; `ami` is now in `i
 | 15 | **The internal domain is hard-coded in two places** that must agree: the FQDN in the root `main.tf` and the zone name in the DNS module. | `main.tf`, `module_aws_dns/main.tf` | Make the zone name a DNS module input and build the FQDN from it. |
 | 16 | **Puppet code changes never reach the master through Terraform**, because of `ignore_changes = [user_data]`. The Puppet code is also embedded in a shell script, so it cannot be linted. | `module_aws_ec2_puppet_master` | Keep the Puppet code in its own Git repository and deploy it to the master with r10k or a simple `git pull`. |
 | 17 | **Single Puppet master with no backup of its CA.** | `module_aws_ec2_puppet_master` | Take scheduled EBS snapshots at minimum. |
-| 18 | **No Terraform version constraint.** The tests need 1.7 or newer. | `provider.tf` | Add `required_version = ">= 1.7"`. |
 | 19 | **Nodes run `dnf update -y` at boot.** Boot is slower and two nodes launched at different times can differ. | `user_data_nodes.tftpl` | Remove it, or bake an image. |
 | 20 | **No ALB access logs and no common tags.** | `module_aws_alb/main.tf`, `provider.tf` | Enable access logs; add `default_tags` to the provider. |
 

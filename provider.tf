@@ -1,4 +1,6 @@
 terraform {
+  # 1.7 is the first release with mock providers, which the unit tests use.
+  required_version = ">= 1.7"
 
   backend "s3" {
     bucket = "backend-terraform-online-course"
