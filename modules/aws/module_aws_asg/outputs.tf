@@ -17,3 +17,8 @@ output "max_size" {
   description = "Maximum size of the Auto Scaling Group"
   value       = aws_autoscaling_group.web.max_size
 }
+
+output "launch_template_version" {
+  description = "Launch template version the Auto Scaling Group uses"
+  value       = aws_autoscaling_group.web.launch_template[0].version
+}

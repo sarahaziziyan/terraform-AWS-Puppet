@@ -218,4 +218,10 @@ run "output_exposes_template_id" {
     condition     = output.id == aws_launch_template.web.id
     error_message = "id must be the launch template's ID."
   }
+
+  # The ASG uses this to start an instance refresh when the template changes (known issue 2).
+  assert {
+    condition     = output.latest_version == aws_launch_template.web.latest_version
+    error_message = "latest_version must be the launch template's latest version number."
+  }
 }

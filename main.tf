@@ -54,9 +54,10 @@ module "module_aws_alb" {
 module "module_aws_asg" {
   source = "./modules/aws/module_aws_asg"
 
-  subnet_ids         = var.subnet_ids
-  launch_template_id = module.module_aws_launch_template.id
-  target_group_arns  = [module.module_aws_alb.target_group_arn]
+  subnet_ids              = var.subnet_ids
+  launch_template_id      = module.module_aws_launch_template.id
+  launch_template_version = module.module_aws_launch_template.latest_version
+  target_group_arns       = [module.module_aws_alb.target_group_arn]
 
   min_size         = var.asg_min_size
   desired_capacity = var.asg_desired_capacity

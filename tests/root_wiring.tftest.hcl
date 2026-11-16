@@ -27,7 +27,8 @@ mock_provider "aws" {
 
   mock_resource "aws_launch_template" {
     defaults = {
-      id = "lt-0123456789abcdef0"
+      id             = "lt-0123456789abcdef0"
+      latest_version = 7
     }
   }
 }
@@ -75,6 +76,17 @@ run "asg_sizes_flow_from_root_variables" {
   assert {
     condition     = output.asg_max_size == var.asg_max_size
     error_message = "asg_max_size must reach the ASG as max_size."
+  }
+}
+
+# Known issue 2: the ASG must use the template's real version number, so a template change
+# starts an instance refresh. The mock returns 7, so a hard-coded or "$Latest" value fails.
+run "asg_uses_launch_template_latest_version" {
+  command = apply
+
+  assert {
+    condition     = module.module_aws_asg.launch_template_version == "7"
+    error_message = "The ASG must use module_aws_launch_template.latest_version as its launch template version."
   }
 }
 

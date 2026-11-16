@@ -32,9 +32,9 @@ See the table in the [README](../README.md#variables). All are required; none ha
 | `module_aws_security_groups` | `vpc_id` | `alb_security_group_id`, `web_security_group_id` |
 | `module_aws_ec2_puppet_master` | `vpc_id`, `subnet_id`, `key_name`, `web_security_group_id`, `puppet_master_fqdn`, `puppet_autosign_secret` | `private_ip` |
 | `module_aws_dns` | `vpc_id`, `puppet_master_fqdn`, `puppet_master_private_ip` | `zone_id` |
-| `module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `puppet_autosign_secret` | `id` |
+| `module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `puppet_autosign_secret` | `id`, `latest_version` |
 | `module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids` | `dns_name`, `zone_id`, `target_group_arn` |
-| `module_aws_asg` | `subnet_ids`, `launch_template_id`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_threshold` | `name`, `min_size`, `desired_capacity`, `max_size` |
+| `module_aws_asg` | `subnet_ids`, `launch_template_id`, `launch_template_version`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_threshold` | `name`, `min_size`, `desired_capacity`, `max_size`, `launch_template_version` |
 
 All module inputs are required. Every module requires the AWS provider `~> 6.0` (`versions.tf`).
 

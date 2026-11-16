@@ -13,13 +13,14 @@ mock_provider "aws" {
 }
 
 variables {
-  subnet_ids         = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
-  launch_template_id = "lt-0123456789abcdef0"
-  target_group_arns  = ["arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:targetgroup/tg-test/0123456789abcdef"]
-  min_size           = 1
-  desired_capacity   = 2
-  max_size           = 4
-  cpu_threshold      = 70
+  subnet_ids              = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
+  launch_template_id      = "lt-0123456789abcdef0"
+  launch_template_version = 3
+  target_group_arns       = ["arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:targetgroup/tg-test/0123456789abcdef"]
+  min_size                = 1
+  desired_capacity        = 2
+  max_size                = 4
+  cpu_threshold           = 70
 }
 
 # Fleet size is controlled by the caller; the module must not change the numbers.
@@ -72,9 +73,10 @@ run "group_uses_given_template_subnets_and_targets" {
     error_message = "The ASG must use the launch template passed to the module."
   }
 
+  # Known issue 2: "$Latest" never changes, so a template change would not start an instance refresh.
   assert {
-    condition     = aws_autoscaling_group.web.launch_template[0].version == "$Latest"
-    error_message = "The ASG must use the $Latest launch template version so new instances get the newest template."
+    condition     = aws_autoscaling_group.web.launch_template[0].version == tostring(var.launch_template_version)
+    error_message = "The ASG must use the explicit launch template version passed to the module, not \"$Latest\"."
   }
 
   assert {
@@ -85,6 +87,21 @@ run "group_uses_given_template_subnets_and_targets" {
   assert {
     condition     = aws_autoscaling_group.web.target_group_arns == toset(var.target_group_arns)
     error_message = "The ASG must register instances with the target groups passed to the module."
+  }
+}
+
+# Regression test for known issue 2: a new template version must change the existing ASG.
+# That in-place change is what makes the provider start the instance refresh.
+run "new_template_version_updates_existing_group" {
+  command = apply
+
+  variables {
+    launch_template_version = 4
+  }
+
+  assert {
+    condition     = aws_autoscaling_group.web.launch_template[0].version == "4"
+    error_message = "A new launch template version must update the ASG, so the instance refresh starts."
   }
 }
 

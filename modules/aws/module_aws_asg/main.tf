@@ -9,8 +9,10 @@ resource "aws_autoscaling_group" "web" {
   max_size         = var.max_size
 
   launch_template {
-    id      = var.launch_template_id
-    version = "$Latest"
+    id = var.launch_template_id
+    # An explicit number, not "$Latest": when the template changes, this value changes,
+    # so Terraform updates the ASG and the instance_refresh block below starts by itself.
+    version = var.launch_template_version
   }
 
   target_group_arns = var.target_group_arns

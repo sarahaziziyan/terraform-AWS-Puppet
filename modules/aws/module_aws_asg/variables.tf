@@ -8,6 +8,11 @@ variable "launch_template_id" {
   description = "ID of the launch template used by the ASG"
 }
 
+variable "launch_template_version" {
+  type        = number
+  description = "Launch template version the ASG uses. Pass the template's latest_version: a new number starts a rolling instance refresh"
+}
+
 variable "target_group_arns" {
   type        = list(string)
   description = "Target group ARNs the ASG registers instances with"

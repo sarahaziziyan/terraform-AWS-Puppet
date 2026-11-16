@@ -83,7 +83,6 @@ The unit tests mock AWS, so they need no credentials and create nothing.
 - One Puppet server. If it is down, running web servers keep serving, but new ones cannot finish setting up.
 - The Terraform state has no locking.
 - SSH access is set up for region `ap-southeast-1` only.
-- A change to the web server template reaches running servers only after you start an instance refresh (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
 
 The full list, with fixes, is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
