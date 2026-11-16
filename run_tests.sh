@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs every unit test suite: each module on its own, then the root wiring test.
+# Runs every unit test suite: each module on its own, the bootstrap config, then the root wiring test.
 # No AWS credentials are needed (the provider is mocked).
 # Usage: ./run_tests.sh
 set -uo pipefail
@@ -25,6 +25,12 @@ run_suite() {
 for module in "$ROOT"/modules/aws/*/; do
   run_suite "${module%/}"
 done
+
+echo
+echo "=== bootstrap ==="
+if ! (cd "$ROOT/bootstrap" && terraform init -input=false -backend=false >/dev/null && terraform test); then
+  failed+=("bootstrap")
+fi
 
 echo
 echo "=== root ==="

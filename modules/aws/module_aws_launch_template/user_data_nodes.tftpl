@@ -26,13 +26,27 @@ IMDS_TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
 INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
   http://169.254.169.254/latest/meta-data/instance-id)
 
-# Secret that the master's autosign script checks
+# Secret that the master's autosign script checks. Read from SSM Parameter Store through the
+# instance role; it is never part of the user data. Deleted once the node has its certificate.
+AUTOSIGN_SECRET=""
+for attempt in 1 2 3 4 5 6; do
+  AUTOSIGN_SECRET=$(aws ssm get-parameter --region ${aws_region} --name "${autosign_secret_parameter_name}" \
+    --with-decryption --query Parameter.Value --output text) && break
+  echo "Could not read the autosign secret (attempt $attempt), retrying in 10 seconds..."
+  sleep 10
+done
+if [ -z "$AUTOSIGN_SECRET" ]; then
+  echo "ERROR: could not read the autosign secret. The ASG will replace this node."
+  exit 1
+fi
 mkdir -p /etc/puppetlabs/puppet
-cat > /etc/puppetlabs/puppet/csr_attributes.yaml <<CSR
+(umask 077 && cat > /etc/puppetlabs/puppet/csr_attributes.yaml <<CSR
 custom_attributes:
-  1.2.840.113549.1.9.7: "${puppet_autosign_secret}"
+  1.2.840.113549.1.9.7: "$AUTOSIGN_SECRET"
 CSR
+)
 chmod 600 /etc/puppetlabs/puppet/csr_attributes.yaml
+unset AUTOSIGN_SECRET
 
 /opt/puppetlabs/bin/puppet config set server ${puppet_master_fqdn} --section main
 /opt/puppetlabs/bin/puppet config set certname "$INSTANCE_ID" --section main
@@ -60,6 +74,9 @@ while [ "$SECONDS" -lt "$DEADLINE" ]; do
   echo "First Puppet run failed (exit $rc), retrying in 20 seconds..."
   sleep 20
 done
+
+# The certificate is signed (or the node is about to be replaced): the secret is no longer needed.
+rm -f /etc/puppetlabs/puppet/csr_attributes.yaml
 
 # Keep running every 30 minutes
 systemctl enable --now puppet

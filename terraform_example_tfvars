@@ -13,7 +13,5 @@ asg_desired_capacity = 3
 asg_max_size         = 25
 cpu_threshold        = 80
 
-puppet_autosign_secret = "secret for signing"
-
 site_repo_url    = "https://github.com/yourrepo.git"
 site_repo_branch = "main"

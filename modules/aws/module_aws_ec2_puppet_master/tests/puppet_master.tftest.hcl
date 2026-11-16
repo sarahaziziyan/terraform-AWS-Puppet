@@ -3,6 +3,12 @@
 # Run from this module's folder:  terraform init && terraform test
 
 mock_provider "aws" {
+  mock_data "aws_region" {
+    defaults = {
+      region = "ap-southeast-1"
+    }
+  }
+
   mock_data "aws_ami" {
     defaults = {
       id = "ami-0123456789abcdef0"
@@ -11,12 +17,14 @@ mock_provider "aws" {
 }
 
 variables {
-  vpc_id                 = "vpc-0123456789abcdef0"
-  subnet_id              = "subnet-0aaaaaaaaaaaaaaa1"
-  key_name               = "test-key"
-  web_security_group_id  = "sg-0123456789abcdef0"
-  puppet_master_fqdn     = "puppet.internal.puppet-server.com"
-  puppet_autosign_secret = "unit-test-secret"
+  vpc_id                = "vpc-0123456789abcdef0"
+  subnet_id             = "subnet-0aaaaaaaaaaaaaaa1"
+  key_name              = "test-key"
+  web_security_group_id = "sg-0123456789abcdef0"
+  puppet_master_fqdn    = "puppet.internal.puppet-server.com"
+
+  autosign_secret_parameter_name = "/test/autosign-secret"
+  instance_profile_name          = "test-master-profile"
 }
 
 # The master holds the CA, so only web nodes may reach the Puppet port.
@@ -157,12 +165,29 @@ run "bootstrap_sets_puppet_names_from_fqdn" {
 }
 
 # Autosign is what lets disposable ASG nodes enrol; it must compare against the shared secret.
+# Known issue 5: the secret is read from SSM at boot through the instance role, never embedded.
 run "bootstrap_installs_autosign_with_secret" {
   command = apply
 
   assert {
-    condition     = strcontains(nonsensitive(aws_instance.puppet_master.user_data), "EXPECTED=\"unit-test-secret\"")
-    error_message = "The autosign script must contain the shared secret passed to the module."
+    condition     = aws_instance.puppet_master.iam_instance_profile == "test-master-profile"
+    error_message = "The master must use the instance profile passed to the module (it may read the secret)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(aws_instance.puppet_master.user_data), "EXPECTED=$(/usr/bin/aws ssm get-parameter --region ap-southeast-1 --name \"/test/autosign-secret\"")
+    error_message = "autosign.sh must read the secret from the SSM parameter passed to the module, for every request."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(aws_instance.puppet_master.user_data), "[ -n \"$EXPECTED\" ] && [ \"$GOT\" = \"$EXPECTED\" ]")
+    error_message = "autosign.sh must reject every request when the secret cannot be read."
+  }
+
+  # The boot check must not print or store the secret: it asks only for the parameter version.
+  assert {
+    condition     = strcontains(nonsensitive(aws_instance.puppet_master.user_data), "--with-decryption --query Parameter.Version --output text > /dev/null")
+    error_message = "The boot-time check must only confirm the secret is readable, without logging or storing it."
   }
 
   assert {

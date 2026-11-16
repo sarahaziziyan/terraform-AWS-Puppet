@@ -23,8 +23,12 @@ variable "puppet_master_fqdn" {
   description = "FQDN of the Puppet master"
 }
 
-variable "puppet_autosign_secret" {
+variable "autosign_secret_parameter_name" {
   type        = string
-  description = "Shared secret used for Puppet certificate autosigning"
-  sensitive   = true
+  description = "Name of the SSM SecureString parameter holding the Puppet autosign secret (created by bootstrap/)"
+}
+
+variable "instance_profile_name" {
+  type        = string
+  description = "Instance profile that lets the master read the autosign secret (created by bootstrap/)"
 }

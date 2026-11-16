@@ -25,9 +25,23 @@ variable "subnet_id" {
 }
 
 # Puppet
-variable "puppet_autosign_secret" {
-  type      = string
-  sensitive = true
+# Created by the admin-applied bootstrap/ config. The defaults match its defaults.
+variable "autosign_secret_parameter_name" {
+  type        = string
+  description = "SSM SecureString parameter holding the Puppet autosign secret (output of bootstrap/)"
+  default     = "/puppet/autosign-secret"
+}
+
+variable "puppet_master_instance_profile_name" {
+  type        = string
+  description = "Instance profile for the Puppet master (output of bootstrap/)"
+  default     = "puppet-master-autosign-reader"
+}
+
+variable "web_node_instance_profile_name" {
+  type        = string
+  description = "Instance profile for the web nodes (output of bootstrap/)"
+  default     = "web-node-autosign-reader"
 }
 
 # Website

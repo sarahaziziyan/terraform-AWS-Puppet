@@ -46,18 +46,17 @@ mock_provider "aws" {
 }
 
 variables {
-  region                 = "ap-southeast-1"
-  key_name               = "test-key"
-  vpc_id                 = "vpc-0123456789abcdef0"
-  subnet_ids             = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
-  subnet_id              = "subnet-0aaaaaaaaaaaaaaa1"
-  puppet_autosign_secret = "unit-test-secret"
-  site_repo_url          = "https://example.com/acme/site.git"
-  site_repo_branch       = "main"
-  asg_min_size           = 1
-  asg_desired_capacity   = 2
-  asg_max_size           = 4
-  cpu_threshold          = 70
+  region               = "ap-southeast-1"
+  key_name             = "test-key"
+  vpc_id               = "vpc-0123456789abcdef0"
+  subnet_ids           = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
+  subnet_id            = "subnet-0aaaaaaaaaaaaaaa1"
+  site_repo_url        = "https://example.com/acme/site.git"
+  site_repo_branch     = "main"
+  asg_min_size         = 1
+  asg_desired_capacity = 2
+  asg_max_size         = 4
+  cpu_threshold        = 70
 }
 
 # All six modules must accept what the root gives them (names, types, required inputs).
@@ -114,6 +113,29 @@ run "cloudfront_fronts_the_alb" {
   assert {
     condition     = output.site_url == "https://d1234abcd.cloudfront.net"
     error_message = "site_url must be the HTTPS CloudFront address."
+  }
+}
+
+# Known issue 5: the master and the nodes get the bootstrap instance profiles and read the
+# secret from SSM. No secret is passed through Terraform any more.
+run "autosign_secret_comes_from_ssm" {
+  command = apply
+
+  assert {
+    condition = (
+      module.module_aws_ec2_puppet_master.instance_profile_name == var.puppet_master_instance_profile_name &&
+      module.module_aws_launch_template.instance_profile_name == var.web_node_instance_profile_name
+    )
+    error_message = "The master and the launch template must use their own bootstrap instance profiles."
+  }
+
+  assert {
+    condition = (
+      var.puppet_master_instance_profile_name == "puppet-master-autosign-reader" &&
+      var.web_node_instance_profile_name == "web-node-autosign-reader" &&
+      var.autosign_secret_parameter_name == "/puppet/autosign-secret"
+    )
+    error_message = "The defaults must match the names bootstrap/ creates."
   }
 }
 

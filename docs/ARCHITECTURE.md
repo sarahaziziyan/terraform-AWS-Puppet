@@ -29,6 +29,7 @@ flowchart LR
 ```
 .
 ├── main.tf                 # Wires the modules together
+├── bootstrap/              # Admin-applied once: autosign secret (SSM), instance roles, PassRole for terraform-user
 ├── provider.tf             # S3 backend + AWS provider
 ├── variables.tf            # Root inputs
 ├── outputs.tf              # Root outputs
@@ -51,8 +52,8 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 ## Data and control flow
 
 1. **Terraform apply** creates security groups, the Puppet master, the DNS record pointing at the master's private IP, the launch template, ALB and ASG, in dependency order.
-2. **Puppet master boots** (user data): installs Puppet Server, sets its certname and DNS names to the internal FQDN, installs an autosign script that accepts any CSR carrying the shared secret, installs the `vcsrepo` module, and writes the `profile::website` class and `site.pp`.
-3. **Web nodes boot** (user data): install nginx without starting it, install the Puppet agent, write the shared secret into `csr_attributes.yaml`, set `certname` to the EC2 instance ID, and write the site repo URL and branch as Puppet *facts* (`/etc/puppetlabs/facter/facts.d/site.txt`).
+2. **Puppet master boots** (user data): installs Puppet Server, sets its certname and DNS names to the internal FQDN, checks that its instance role can read the autosign secret in SSM Parameter Store, installs an autosign script that reads the secret from SSM for each request and accepts only CSRs carrying it, installs the `vcsrepo` module, and writes the `profile::website` class and `site.pp`.
+3. **Web nodes boot** (user data): install nginx without starting it, install the Puppet agent, read the autosign secret from SSM Parameter Store through their instance role and write it into `csr_attributes.yaml` (deleted again after the first Puppet run), set `certname` to the EC2 instance ID, and write the site repo URL and branch as Puppet *facts* (`/etc/puppetlabs/facter/facts.d/site.txt`).
 4. **First Puppet run**: the agent contacts the master over port 8140, its certificate request is auto-signed, and the master's catalog (nodes named `i-xxxx...`) clones the repo, copies `index.html` and assets into the nginx web root, and only then starts nginx. Until this run succeeds the node answers nothing, so it fails the health check and gets no traffic. The node retries the first run for up to 4 minutes (the master may still be installing on a fresh deploy); if it never succeeds, the node stays unhealthy and the ASG replaces it.
 5. **Steady state**: agents re-check in every 30 minutes, so pushing to the Git branch updates all nodes with no Terraform run.
 6. **Scaling**: a CloudWatch alarm (average CPU above `cpu_threshold` for 2 x 120 s) triggers a +1 instance policy with a 300 s cooldown. The ASG health check uses the ALB, with a 600 s grace period, which covers boot plus the first Puppet run.
@@ -75,12 +76,12 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 | **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. SSH is limited to the EC2 Instance Connect range. |
 | **`ignore_changes = [user_data, ami]` on the master** | Prevents a bootstrap script edit or a newly published Ubuntu image from destroying and rebuilding the Puppet server (and its CA). |
 | **`ignore_changes = [desired_capacity]` on the ASG** | The scaling policy owns the running node count. Without this, every apply would reset the fleet to `asg_desired_capacity` and undo scale-out. |
-| **Sensitive variable for the autosign secret** | Keeps it out of plan output. |
+| **Autosign secret in SSM, created by an admin-applied `bootstrap/` config** | Terraform generates the secret as an ephemeral value and writes it write-only (`value_wo`), so it is never in a plan, the state, tfvars or user data. The instances read it at boot through roles whose only permission is `ssm:GetParameter` on that parameter. The roles are created by an administrator, so `terraform-user` never gets to create IAM roles: it may only pass these two roles to EC2. |
 
 ## Security notes
 
-- `*.tfvars`, state files and keys are git-ignored. State in S3 contains the autosign secret in plain text, so restrict and encrypt that bucket.
-- The secret is also present in instance user data. Anyone with `ec2:DescribeInstanceAttribute` or instance access can read it; rotate it if exposed.
+- `*.tfvars`, state files and keys are git-ignored. Restrict and encrypt the state bucket.
+- The autosign secret is stored only in the encrypted SSM parameter, and briefly on each node until its first Puppet run. The master never stores it; `autosign.sh` reads it for each request. A process running on a node can still read it through the node's role; checking that each request comes from a real ASG instance is in [TODO.md](TODO.md). Rotate it with `autosign_secret_version` in `bootstrap/`.
 - The master and the web nodes require IMDSv2 (`http_tokens = "required"`, hop limit 1). A plain GET to the metadata service, as an SSRF bug would send, cannot read user data or credentials. Any process on the instance can still get a token, so this does not protect against code already running there.
 - The root volumes of the master (which holds the Puppet CA key) and the web nodes are encrypted explicitly with the AWS-managed EBS key, whatever the account's default.
 - Visitors use HTTPS (CloudFront redirects HTTP). The hop from CloudFront to the ALB is still plain HTTP, and the ALB trusts any CloudFront distribution (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md), issue 21).

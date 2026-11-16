@@ -3,6 +3,12 @@
 # Run from this module's folder:  terraform init && terraform test
 
 mock_provider "aws" {
+  mock_data "aws_region" {
+    defaults = {
+      region = "ap-southeast-1"
+    }
+  }
+
   mock_data "aws_ssm_parameter" {
     defaults = {
       value = "ami-0123456789abcdef0"
@@ -11,12 +17,14 @@ mock_provider "aws" {
 }
 
 variables {
-  key_name               = "test-key"
-  security_group_ids     = ["sg-0123456789abcdef0"]
-  site_repo_url          = "https://example.com/acme/site.git"
-  site_repo_branch       = "release"
-  puppet_master_fqdn     = "puppet.internal.puppet-server.com"
-  puppet_autosign_secret = "unit-test-secret"
+  key_name           = "test-key"
+  security_group_ids = ["sg-0123456789abcdef0"]
+  site_repo_url      = "https://example.com/acme/site.git"
+  site_repo_branch   = "release"
+  puppet_master_fqdn = "puppet.internal.puppet-server.com"
+
+  autosign_secret_parameter_name = "/test/autosign-secret"
+  instance_profile_name          = "test-node-profile"
 }
 
 # Every web node is built from these settings.
@@ -83,12 +91,29 @@ run "instances_are_tagged" {
 }
 
 # The node proves it may be auto-signed by sending the shared secret in its certificate request.
+# Known issue 5: the secret is read from SSM at boot through the instance role, never embedded,
+# and deleted once the node has its certificate.
 run "user_data_sends_autosign_secret" {
   command = apply
 
   assert {
-    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "1.2.840.113549.1.9.7: \"unit-test-secret\"")
-    error_message = "csr_attributes.yaml must carry the shared secret as the challengePassword attribute."
+    condition     = aws_launch_template.web.iam_instance_profile[0].name == "test-node-profile"
+    error_message = "Nodes must use the instance profile passed to the module (it may read the secret)."
+  }
+
+  assert {
+    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "aws ssm get-parameter --region ap-southeast-1 --name \"/test/autosign-secret\"")
+    error_message = "Nodes must read the autosign secret from the SSM parameter passed to the module."
+  }
+
+  assert {
+    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "1.2.840.113549.1.9.7: \"$AUTOSIGN_SECRET\"")
+    error_message = "csr_attributes.yaml must carry the secret read at boot as the challengePassword attribute."
+  }
+
+  assert {
+    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "rm -f /etc/puppetlabs/puppet/csr_attributes.yaml")
+    error_message = "The secret must be deleted from the node after the first Puppet run."
   }
 
   assert {

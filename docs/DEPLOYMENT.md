@@ -4,10 +4,11 @@ Deployment is manual, with Terraform, into a single environment. There is no CI/
 
 ## First deployment
 
-1. Set the S3 backend values in `provider.tf`. The bucket must already exist; enable versioning and encryption on it.
-2. Run `cp terraform_example_tfvars terraform.tfvars` and fill in the values.
-3. Run `terraform init`, `terraform plan`, then `terraform apply`.
-4. Wait 5 to 10 minutes, then open `terraform output -raw site_url` and run the integration checks in [TESTING.md](TESTING.md).
+1. Set the S3 backend values in `provider.tf` and `bootstrap/versions.tf`. The bucket must already exist; enable versioning and encryption on it.
+2. With administrator credentials, apply `bootstrap/` once: `cd bootstrap && terraform init && terraform apply`. It creates the autosign secret in SSM Parameter Store, the two instance roles that may read it, and the `iam:PassRole` policy on `terraform-user`.
+3. Run `cp terraform_example_tfvars terraform.tfvars` and fill in the values.
+4. With `terraform-user`, run `terraform init`, `terraform plan`, then `terraform apply`.
+5. Wait 5 to 10 minutes, then open `terraform output -raw site_url` and run the integration checks in [TESTING.md](TESTING.md).
 
 ## Updating
 
@@ -46,6 +47,28 @@ terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet
 Terraform ignores changes to the master's AMI and user data, so a newer Ubuntu image or an edited bootstrap script never replaces it. The master therefore keeps the image it was first built from: patch it in place with `apt`.
 
 If a plan ever wants to replace `aws_instance.puppet_master` and you did not ask for it, do not apply. Find out which attribute forces the replacement first.
+
+## Autosign secret
+
+### Moving an existing stack to the SSM secret (once)
+
+Stacks deployed before `bootstrap/` existed have the secret built into the master's boot script.
+
+1. Apply `bootstrap/` with administrator credentials (first deployment, step 2).
+2. Delete the `puppet_autosign_secret` line from `terraform.tfvars`.
+3. Replace the master. Terraform ignores changes to its boot script, so a plain apply would leave it on the old secret and new nodes could not enrol:
+
+```bash
+terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet_master
+```
+
+The same apply creates a new launch template version, so the nodes are replaced by a rolling refresh. Running nodes keep serving the site until their replacements are healthy.
+
+### Rotating the secret
+
+Increase `autosign_secret_version` in `bootstrap/` by one and apply it with administrator credentials. Terraform writes a new random secret; nothing is stored in its state.
+
+The master reads the secret from SSM for every request, so the new one applies immediately. Nodes that are already enrolled keep working. New nodes read the new secret at boot.
 
 ## Rollback
 

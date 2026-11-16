@@ -12,7 +12,7 @@
 
 Written with Terraform's built-in test framework (`terraform test`, Terraform 1.7 or newer). The AWS provider is mocked, so the tests need no credentials and create nothing.
 
-Run every suite (each module, then the root):
+Run every suite (each module, `bootstrap/`, then the root):
 
 ```bash
 ./run_tests.sh
@@ -29,6 +29,7 @@ terraform test
 | Location | Scope |
 |---|---|
 | `modules/aws/<module>/tests/*.tftest.hcl` | One module in isolation: its variables, resources, outputs and rendered bootstrap script |
+| `bootstrap/tests/bootstrap.tftest.hcl` | The admin-applied config: encrypted write-only secret, read-only instance roles, PassRole limited to those roles |
 | `tests/root_wiring.tftest.hcl` | How the root connects the modules and passes inputs through |
 
 Each module is self-contained so it can move to its own repository. It has its own `versions.tf` and its own `tests/` folder with its own mocks and inputs, and refers to nothing outside its folder. The root wiring test stays in this repository.
@@ -76,6 +77,7 @@ Deploy to a scratch environment: a separate state key and `terraform.tfvars`, wi
 | Agent run works | On a node: `sudo /opt/puppetlabs/bin/puppet agent --test` | Exit code 0 or 2, no errors |
 | Content updates | Push a change to the site repo, then run `puppet agent --test` on a node | New content served |
 | Self-healing | Terminate one instance | The ASG launches a replacement that becomes healthy within about 10 minutes |
+| Secret not on nodes | On a node: `sudo ls /etc/puppetlabs/puppet/csr_attributes.yaml` | `No such file or directory` (deleted after the first Puppet run) |
 | Node setup | On a node: `tail -n 20 /var/log/user_data.log` | Ends with `Puppet agent configured as i-...`, not `ERROR: Puppet did not configure this node` |
 | Scale-out | Generate CPU load on the nodes (for example with `stress-ng`) | Alarm `web-asg-cpu-high-*` fires and one node is added |
 

@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -44,13 +46,16 @@ resource "aws_instance" "puppet_master" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.puppet_master.id]
 
+  # Created by the admin-applied bootstrap config. Its only permission: read the autosign secret.
+  iam_instance_profile = var.instance_profile_name
+
   # Encrypted explicitly: the disk holds the Puppet CA's private key.
   root_block_device {
     volume_size = 30
     encrypted   = true
   }
 
-  # IMDSv2 only: blocks SSRF-style reads of user data (which holds the autosign secret).
+  # IMDSv2 only: blocks SSRF-style reads of user data and of the instance role's credentials.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
@@ -58,8 +63,9 @@ resource "aws_instance" "puppet_master" {
   }
 
   user_data = templatefile("${path.module}/puppet_master.tftpl", {
-    puppet_master_fqdn     = var.puppet_master_fqdn
-    puppet_autosign_secret = var.puppet_autosign_secret
+    puppet_master_fqdn             = var.puppet_master_fqdn
+    aws_region                     = data.aws_region.current.region
+    autosign_secret_parameter_name = var.autosign_secret_parameter_name
   })
 
   lifecycle {

@@ -11,14 +11,31 @@ apt-get install -y puppetserver
 /opt/puppetlabs/bin/puppet config set server ${puppet_master_fqdn} --section main
 /opt/puppetlabs/bin/puppet config set dns_alt_names puppet,${puppet_master_fqdn} --section server
 
-# Autosign script (secret comes from Terraform)
+# The autosign secret lives only in SSM Parameter Store. autosign.sh reads it through the
+# instance role for every certificate request, so it is never stored on this disk and a
+# rotated secret takes effect at once. Check now that the role can read it (output discarded).
+apt-get install -y awscli
+SECRET_READABLE=false
+for attempt in 1 2 3 4 5 6; do
+  if aws ssm get-parameter --region ${aws_region} --name "${autosign_secret_parameter_name}" \
+      --with-decryption --query Parameter.Version --output text > /dev/null; then
+    SECRET_READABLE=true
+    break
+  fi
+  echo "Could not read the autosign secret (attempt $attempt), retrying in 10 seconds..."
+  sleep 10
+done
+[ "$SECRET_READABLE" = true ]
+
+# Autosign script: accept a CSR only if its challengePassword equals the secret in SSM
 cat > /etc/puppetlabs/puppet/autosign.sh <<'EOF'
 #!/bin/bash
-EXPECTED="${puppet_autosign_secret}"
+EXPECTED=$(/usr/bin/aws ssm get-parameter --region ${aws_region} --name "${autosign_secret_parameter_name}" \
+  --with-decryption --query Parameter.Value --output text) || exit 1
 CSR=$(cat)
 GOT=$(echo "$CSR" | /opt/puppetlabs/puppet/bin/openssl req -noout -text \
       | grep -E 'challengePassword[[:space:]]*:' | sed 's/.*://' | tr -d '[:space:]')
-[ "$GOT" = "$EXPECTED" ]
+[ -n "$EXPECTED" ] && [ "$GOT" = "$EXPECTED" ]
 EOF
 chown puppet:puppet /etc/puppetlabs/puppet/autosign.sh
 chmod 750 /etc/puppetlabs/puppet/autosign.sh

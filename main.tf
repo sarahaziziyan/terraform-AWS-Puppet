@@ -11,13 +11,15 @@ module "module_aws_security_groups" {
 
 # Puppet master (instance and its security group)
 module "module_aws_ec2_puppet_master" {
-  source                 = "./modules/aws/module_aws_ec2_puppet_master"
-  vpc_id                 = var.vpc_id
-  subnet_id              = var.subnet_id
-  key_name               = var.key_name
-  web_security_group_id  = module.module_aws_security_groups.web_security_group_id
-  puppet_master_fqdn     = local.puppet_master_fqdn
-  puppet_autosign_secret = var.puppet_autosign_secret
+  source                = "./modules/aws/module_aws_ec2_puppet_master"
+  vpc_id                = var.vpc_id
+  subnet_id             = var.subnet_id
+  key_name              = var.key_name
+  web_security_group_id = module.module_aws_security_groups.web_security_group_id
+  puppet_master_fqdn    = local.puppet_master_fqdn
+
+  autosign_secret_parameter_name = var.autosign_secret_parameter_name
+  instance_profile_name          = var.puppet_master_instance_profile_name
 }
 
 # Internal DNS (private zone and Puppet master record)
@@ -33,12 +35,14 @@ module "module_aws_dns" {
 module "module_aws_launch_template" {
   source = "./modules/aws/module_aws_launch_template"
 
-  key_name               = var.key_name
-  security_group_ids     = [module.module_aws_security_groups.web_security_group_id]
-  site_repo_url          = var.site_repo_url
-  site_repo_branch       = var.site_repo_branch
-  puppet_master_fqdn     = local.puppet_master_fqdn
-  puppet_autosign_secret = var.puppet_autosign_secret
+  key_name           = var.key_name
+  security_group_ids = [module.module_aws_security_groups.web_security_group_id]
+  site_repo_url      = var.site_repo_url
+  site_repo_branch   = var.site_repo_branch
+  puppet_master_fqdn = local.puppet_master_fqdn
+
+  autosign_secret_parameter_name = var.autosign_secret_parameter_name
+  instance_profile_name          = var.web_node_instance_profile_name
 }
 
 # Application Load Balancer

@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 # Look up the latest Amazon Linux 2023 AMI
 data "aws_ssm_parameter" "al2023" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
@@ -13,7 +15,7 @@ resource "aws_launch_template" "web" {
     enabled = true
   }
 
-  # IMDSv2 only: blocks SSRF-style reads of user data (which holds the autosign secret).
+  # IMDSv2 only: blocks SSRF-style reads of user data and of the instance role's credentials.
   # The bootstrap script already requests a token before reading metadata.
   metadata_options {
     http_endpoint               = "enabled"
@@ -22,6 +24,11 @@ resource "aws_launch_template" "web" {
   }
 
   vpc_security_group_ids = var.security_group_ids
+
+  # Created by the admin-applied bootstrap config. Its only permission: read the autosign secret.
+  iam_instance_profile {
+    name = var.instance_profile_name
+  }
 
   # Encrypt the root volume explicitly instead of relying on the account's EBS default.
   # /dev/xvda is the root device name of the Amazon Linux 2023 AMI.
@@ -33,10 +40,11 @@ resource "aws_launch_template" "web" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data_nodes.tftpl", {
-    site_repo_url          = var.site_repo_url
-    site_repo_branch       = var.site_repo_branch
-    puppet_master_fqdn     = var.puppet_master_fqdn
-    puppet_autosign_secret = var.puppet_autosign_secret
+    site_repo_url                  = var.site_repo_url
+    site_repo_branch               = var.site_repo_branch
+    puppet_master_fqdn             = var.puppet_master_fqdn
+    aws_region                     = data.aws_region.current.region
+    autosign_secret_parameter_name = var.autosign_secret_parameter_name
   }))
 
   tag_specifications {
