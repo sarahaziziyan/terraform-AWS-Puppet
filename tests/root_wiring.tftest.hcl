@@ -25,6 +25,18 @@ mock_provider "aws" {
     }
   }
 
+  mock_resource "aws_cloudfront_distribution" {
+    defaults = {
+      domain_name = "d1234abcd.cloudfront.net"
+    }
+  }
+
+  mock_data "aws_ec2_managed_prefix_list" {
+    defaults = {
+      id = "pl-31a34658"
+    }
+  }
+
   mock_resource "aws_launch_template" {
     defaults = {
       id             = "lt-0123456789abcdef0"
@@ -87,6 +99,21 @@ run "asg_uses_launch_template_latest_version" {
   assert {
     condition     = module.module_aws_asg.launch_template_version == "7"
     error_message = "The ASG must use module_aws_launch_template.latest_version as its launch template version."
+  }
+}
+
+# Known issue 10: visitors use HTTPS through CloudFront, which must forward to this stack's ALB.
+run "cloudfront_fronts_the_alb" {
+  command = apply
+
+  assert {
+    condition     = module.module_aws_cloudfront.origin_domain_name == output.alb_dns_name
+    error_message = "CloudFront must use this stack's ALB as its origin."
+  }
+
+  assert {
+    condition     = output.site_url == "https://d1234abcd.cloudfront.net"
+    error_message = "site_url must be the HTTPS CloudFront address."
   }
 }
 

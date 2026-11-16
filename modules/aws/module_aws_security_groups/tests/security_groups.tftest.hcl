@@ -2,24 +2,38 @@
 # Self-contained: the AWS provider is mocked, so no credentials or real resources are needed.
 # Run from this module's folder:  terraform init && terraform test
 
-mock_provider "aws" {}
+mock_provider "aws" {
+  mock_data "aws_ec2_managed_prefix_list" {
+    defaults = {
+      id = "pl-31a34658"
+    }
+  }
+}
 
 variables {
   vpc_id = "vpc-0123456789abcdef0"
 }
 
-# The ALB is the only public entry point: HTTP 80 from anywhere.
-run "alb_accepts_http_from_internet" {
+# Known issue 10: only CloudFront may reach the ALB (HTTP 80), so visitors cannot bypass HTTPS.
+run "alb_accepts_http_only_from_cloudfront" {
   command = apply
 
   assert {
     condition     = aws_vpc_security_group_ingress_rule.alb_http.security_group_id == aws_security_group.alb.id
-    error_message = "The public HTTP rule must be attached to the ALB security group."
+    error_message = "The HTTP rule must belong to the ALB security group."
   }
 
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.alb_http.cidr_ipv4 == "0.0.0.0/0"
-    error_message = "The ALB must accept HTTP from anywhere."
+    condition     = data.aws_ec2_managed_prefix_list.cloudfront.name == "com.amazonaws.global.cloudfront.origin-facing"
+    error_message = "The ALB must look up CloudFront's origin-facing prefix list."
+  }
+
+  assert {
+    condition = (
+      aws_vpc_security_group_ingress_rule.alb_http.prefix_list_id == data.aws_ec2_managed_prefix_list.cloudfront.id &&
+      aws_vpc_security_group_ingress_rule.alb_http.cidr_ipv4 == null
+    )
+    error_message = "The ALB must accept HTTP only from CloudFront's prefix list, not from 0.0.0.0/0."
   }
 
   assert {
@@ -28,7 +42,7 @@ run "alb_accepts_http_from_internet" {
       aws_vpc_security_group_ingress_rule.alb_http.from_port == 80 &&
       aws_vpc_security_group_ingress_rule.alb_http.to_port == 80
     )
-    error_message = "The ALB ingress rule must be TCP port 80 only."
+    error_message = "The ALB rule must open TCP port 80 only."
   }
 }
 

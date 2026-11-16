@@ -12,10 +12,17 @@ resource "aws_security_group" "alb" {
   }
 }
 
+# AWS-managed list of the addresses CloudFront uses to reach origins.
+data "aws_ec2_managed_prefix_list" "cloudfront" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
+
+# Only CloudFront may reach the ALB, so visitors cannot bypass HTTPS by using the ALB address.
+# The list counts as about 55 rules towards the group's limit of 60 inbound rules.
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   security_group_id = aws_security_group.alb.id
-  description       = "HTTP from anywhere"
-  cidr_ipv4         = "0.0.0.0/0"
+  description       = "HTTP from CloudFront only"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront.id
   ip_protocol       = "tcp"
   from_port         = 80
   to_port           = 80

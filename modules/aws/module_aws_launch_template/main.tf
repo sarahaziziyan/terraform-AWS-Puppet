@@ -48,4 +48,10 @@ resource "aws_launch_template" "web" {
   }
 
   update_default_version = true
+
+  # Lets `terraform apply -replace` swap the template without the ASG ever pointing at a
+  # deleted one: the new template is created and the ASG updated before the old one is removed.
+  lifecycle {
+    create_before_destroy = true
+  }
 }

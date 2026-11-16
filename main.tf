@@ -50,6 +50,13 @@ module "module_aws_alb" {
   security_group_ids = [module.module_aws_security_groups.alb_security_group_id]
 }
 
+# CloudFront: HTTPS for visitors, forwarding to the ALB
+module "module_aws_cloudfront" {
+  source = "./modules/aws/module_aws_cloudfront"
+
+  alb_dns_name = module.module_aws_alb.dns_name
+}
+
 # Auto Scaling Group
 module "module_aws_asg" {
   source = "./modules/aws/module_aws_asg"

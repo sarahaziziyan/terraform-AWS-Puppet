@@ -2,13 +2,14 @@
 
 ## What this project is
 
-An AWS web hosting stack defined entirely in Terraform. Traffic enters through an Application Load Balancer and is served by an Auto Scaling Group of nginx web nodes. A dedicated Puppet master configures those nodes and deploys the website from a Git repository.
+An AWS web hosting stack defined entirely in Terraform. Visitors connect over HTTPS to a CloudFront distribution, which forwards to an Application Load Balancer; the site is served by an Auto Scaling Group of nginx web nodes. A dedicated Puppet master configures those nodes and deploys the website from a Git repository.
 
 ## System overview
 
 ```mermaid
 flowchart LR
-  user([Internet user]) -->|HTTP :80| alb[Application Load Balancer]
+  user([Internet user]) -->|HTTPS :443, HTTP redirected| cf[CloudFront<br/>*.cloudfront.net]
+  cf -->|HTTP :80, CloudFront addresses only| alb[Application Load Balancer]
   alb -->|HTTP :80, health check /| asg
 
   subgraph asg [Auto Scaling Group - web nodes, AL2023 + nginx]
@@ -41,6 +42,7 @@ flowchart LR
     ├── module_aws_dns/               # Private Route 53 zone + record for the master
     ├── module_aws_launch_template/   # Web node template + bootstrap script
     ├── module_aws_alb/               # Load balancer, target group, listener
+    ├── module_aws_cloudfront/        # CloudFront distribution (HTTPS for visitors), cache policy
     └── module_aws_asg/               # Auto Scaling Group, scale-out policy, CPU alarm
 ```
 
@@ -69,6 +71,7 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 | **Instance ID as Puppet certname** | Unique per node and available at boot, so replaced nodes never clash with old certificates. |
 | **Site repo/branch passed as Puppet facts** | Keeps a single source of truth in `terraform.tfvars`; Puppet code stays generic. |
 | **S3 remote backend** | Shared, durable state instead of a local file. |
+| **CloudFront for HTTPS, without a custom domain** | Gives visitors HTTPS with CloudFront's own certificate, which needs no domain. The ALB accepts traffic only from CloudFront's managed prefix list, so the HTTPS address is the only way in. Pages are cached for 5 minutes, so Puppet's site updates appear within minutes. |
 | **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. SSH is limited to the EC2 Instance Connect range. |
 | **`ignore_changes = [user_data, ami]` on the master** | Prevents a bootstrap script edit or a newly published Ubuntu image from destroying and rebuilding the Puppet server (and its CA). |
 | **`ignore_changes = [desired_capacity]` on the ASG** | The scaling policy owns the running node count. Without this, every apply would reset the fleet to `asg_desired_capacity` and undo scale-out. |
@@ -80,8 +83,8 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 - The secret is also present in instance user data. Anyone with `ec2:DescribeInstanceAttribute` or instance access can read it; rotate it if exposed.
 - The master and the web nodes require IMDSv2 (`http_tokens = "required"`, hop limit 1). A plain GET to the metadata service, as an SSRF bug would send, cannot read user data or credentials. Any process on the instance can still get a token, so this does not protect against code already running there.
 - The root volumes of the master (which holds the Puppet CA key) and the web nodes are encrypted explicitly with the AWS-managed EBS key, whatever the account's default.
-- Traffic is unencrypted HTTP. Add an HTTPS listener with an ACM certificate before real use.
+- Visitors use HTTPS (CloudFront redirects HTTP). The hop from CloudFront to the ALB is still plain HTTP, and the ALB trusts any CloudFront distribution (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md), issue 21).
 
 ## Limits and trade-offs
 
-Single Puppet master (no HA); scale-out only; HTTP only; the website must be a public repo; the fixed internal domain `internal.puppet-server.com` is set in `main.tf` and the DNS module; unit tests exist but there is no CI (see [TESTING.md](TESTING.md), [DEPLOYMENT.md](DEPLOYMENT.md)). The full list of problems is in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+Single Puppet master (no HA); scale-out only; HTTPS only on a generated `*.cloudfront.net` address; the website must be a public repo; the fixed internal domain `internal.puppet-server.com` is set in `main.tf` and the DNS module; unit tests exist but there is no CI (see [TESTING.md](TESTING.md), [DEPLOYMENT.md](DEPLOYMENT.md)). The full list of problems is in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).

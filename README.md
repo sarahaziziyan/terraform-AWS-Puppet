@@ -2,7 +2,7 @@
 
 Terraform that builds a small, self-healing website platform on AWS. A **Puppet** server configures every web server and deploys the website from a Git repository.
 
-- **Terraform** builds the infrastructure once: a load balancer, an auto scaling group of nginx web servers, a Puppet server and a private DNS name for it.
+- **Terraform** builds the infrastructure once: an HTTPS address (CloudFront), a load balancer, an auto scaling group of nginx web servers, a Puppet server and a private DNS name for it.
 - **Puppet** keeps the web servers configured from then on. Push to your website's Git branch and every server picks it up within about 30 minutes, with no Terraform run.
 
 Unhealthy servers are replaced automatically, and one server is added when average CPU stays above a threshold you set.
@@ -11,7 +11,7 @@ Unhealthy servers are replaced automatically, and one server is added when avera
 
 - Terraform 1.7 or newer (tested with 1.16.4). This is enforced by `required_version = ">= 1.7"` in `provider.tf` and in each module, so an older version stops with an error. Check yours with `terraform version`
 - AWS provider 6.x (`~> 6.0`), installed automatically by `terraform init`
-- AWS credentials that can create EC2, load balancer, auto scaling, Route 53 and CloudWatch resources (`aws sts get-caller-identity` should work)
+- AWS credentials that can create EC2, load balancer, auto scaling, CloudFront, Route 53 and CloudWatch resources (`aws sts get-caller-identity` should work)
 - An existing VPC with at least two subnets in different availability zones
 - An existing EC2 key pair
 - An existing S3 bucket for the Terraform state
@@ -58,11 +58,13 @@ Wait 5 to 10 minutes after `apply` while the servers set themselves up.
 
 ## Use it
 
-Open the site: print the address, then browse to `http://<that-address>`.
+Open the site: print the address and browse to it. It is an `https://...cloudfront.net` address; plain HTTP is redirected to HTTPS. The load balancer's own address only accepts traffic from CloudFront.
 
 ```bash
-terraform output -raw alb_dns_name
+terraform output -raw site_url
 ```
+
+A new CloudFront distribution takes a few minutes to become reachable after the first `apply`.
 
 - **Change the website:** push to the branch set in `site_repo_branch`.
 - **Change the number of servers:** edit the `asg_*` values in `terraform.tfvars` and run `terraform apply`.
@@ -78,7 +80,7 @@ The unit tests mock AWS, so they need no credentials and create nothing.
 
 ## Limits
 
-- HTTP only (port 80, no TLS).
+- The HTTPS address is a generated `*.cloudfront.net` name; there is no custom domain yet.
 - The fleet scales out but never back in.
 - One Puppet server. If it is down, running web servers keep serving, but new ones cannot finish setting up.
 - The Terraform state has no locking.

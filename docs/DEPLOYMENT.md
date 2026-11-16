@@ -7,7 +7,7 @@ Deployment is manual, with Terraform, into a single environment. There is no CI/
 1. Set the S3 backend values in `provider.tf`. The bucket must already exist; enable versioning and encryption on it.
 2. Run `cp terraform_example_tfvars terraform.tfvars` and fill in the values.
 3. Run `terraform init`, `terraform plan`, then `terraform apply`.
-4. Wait 5 to 10 minutes, then run the integration checks in [TESTING.md](TESTING.md).
+4. Wait 5 to 10 minutes, then open `terraform output -raw site_url` and run the integration checks in [TESTING.md](TESTING.md).
 
 ## Updating
 
@@ -18,26 +18,26 @@ Always read `terraform plan` before applying.
 | Website content | Push to the branch in `site_repo_branch` | Nodes pick it up on their next Puppet run (up to 30 minutes). No Terraform run |
 | Web node setup (user data, instance type) | `terraform apply` | Apply creates a new launch template version and updates the ASG to it, which starts a rolling instance refresh. Running nodes are replaced a batch at a time, keeping at least 50% healthy. `terraform plan` shows this as an in-place change to the ASG's `launch_template.version` |
 | Nothing (a new Amazon Linux 2023 image was released) | `terraform apply` | The launch template always looks up the newest image, so apply creates a new version and starts a refresh, the same as above. If `plan` shows `image_id` changing on the launch template, this is why |
-| ASG sizes or CPU threshold | Edit `terraform.tfvars`, then `terraform apply` | Minimum, maximum and threshold are applied in place. `asg_desired_capacity` is used only when the ASG is first created; later changes to it are ignored so that apply does not undo scale-out. To resize a running fleet, change `asg_min_size`/`asg_max_size` or run `aws autoscaling set-desired-capacity` |
+| ASG sizes or CPU threshold | Edit `terraform.tfvars`, then `terraform apply` | Minimum, maximum and threshold are applied in place. `asg_desired_capacity` is used only when the ASG is first created; later changes to it are ignored so that apply does not undo scale-out. To resize a running fleet, change `asg_min_size` (to add nodes) or `asg_max_size` (to remove nodes) and apply |
 | Security groups, load balancer | `terraform apply` | Security groups are replaced create-before-destroy |
+| CloudFront settings | `terraform apply` | Changes take a few minutes to reach all CloudFront locations. Cached pages expire within 5 minutes |
 | Puppet code or master bootstrap script | Edit the files on the master directly | Terraform ignores changes to the master's user data, so `apply` does nothing |
 
-### Start an instance refresh by hand
+### Replace every node without changing the template
 
-A launch template change starts a refresh on its own. Start one by hand only when you want to replace every node without changing the template, for example after replacing the Puppet master:
+A launch template change starts a refresh on its own. To replace every node without changing anything, for example after replacing the Puppet master, have Terraform recreate the launch template. The ASG then points at the new template, which starts the same rolling refresh:
 
 ```bash
-aws autoscaling start-instance-refresh --auto-scaling-group-name "$(terraform output -raw asg_name)" \
-  --preferences '{"MinHealthyPercentage": 50}'
+terraform apply -replace=module.module_aws_launch_template.aws_launch_template.web
 ```
 
-Follow its progress with `aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$(terraform output -raw asg_name)"`.
+Follow its progress (read-only) with `aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$(terraform output -raw asg_name)"`.
 
-A new node passes the health check only after Puppet has deployed the site, and the refresh waits the 600 s grace period for each batch, so a refresh of a few nodes takes 20 to 30 minutes. If the site repository is broken (wrong URL or branch, no `index.html`), new nodes never become healthy and the refresh does not complete; the nodes it has not reached keep serving the last good copy. Fix the repository, or cancel the refresh with `aws autoscaling cancel-instance-refresh`.
+A new node passes the health check only after Puppet has deployed the site, and the refresh waits the 600 s grace period for each batch, so a refresh of a few nodes takes 20 to 30 minutes. If the site repository is broken (wrong URL or branch, no `index.html`), new nodes never become healthy and the refresh does not complete; the nodes it has not reached keep serving the last good copy. Fix the repository: the ASG keeps replacing the failed nodes, and once the repository is fixed the replacements succeed and the refresh finishes.
 
 ### Replacing the Puppet master
 
-Avoid it. A new master has a new certificate authority, so every node must be replaced afterwards (start an instance refresh). To do it on purpose:
+Avoid it. A new master has a new certificate authority, so every node must be replaced afterwards (see the section above). To do it on purpose:
 
 ```bash
 terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet_master

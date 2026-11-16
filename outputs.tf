@@ -1,10 +1,20 @@
+output "site_url" {
+  description = "HTTPS address of the website (CloudFront)"
+  value       = module.module_aws_cloudfront.url
+}
+
+output "cloudfront_distribution_id" {
+  description = "ID of the CloudFront distribution (for cache invalidations)"
+  value       = module.module_aws_cloudfront.distribution_id
+}
+
 output "puppet_master_private_ip" {
   description = "Private IP of the Puppet master"
   value       = module.module_aws_ec2_puppet_master.private_ip
 }
 
 output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
+  description = "DNS name of the Application Load Balancer. Reachable only from CloudFront; use site_url"
   value       = module.module_aws_alb.dns_name
 }
 
