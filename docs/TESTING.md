@@ -73,7 +73,8 @@ Deploy to a scratch environment: a separate state key and `terraform.tfvars`, wi
 | Nodes enrolled | On the master: `sudo /opt/puppetlabs/bin/puppetserver ca list --all` | One signed certificate per instance ID |
 | Agent run works | On a node: `sudo /opt/puppetlabs/bin/puppet agent --test` | Exit code 0 or 2, no errors |
 | Content updates | Push a change to the site repo, then run `puppet agent --test` on a node | New content served |
-| Self-healing | Terminate one instance | The ASG launches a replacement that becomes healthy |
+| Self-healing | Terminate one instance | The ASG launches a replacement that becomes healthy within about 10 minutes |
+| Node setup | On a node: `tail -n 20 /var/log/user_data.log` | Ends with `Puppet agent configured as i-...`, not `ERROR: Puppet did not configure this node` |
 | Scale-out | Generate CPU load on the nodes (for example with `stress-ng`) | Alarm `web-asg-cpu-high-*` fires and one node is added |
 
 Bootstrap logs: `/var/log/user_data.log` on web nodes, `/var/log/cloud-init-output.log` on the master.

@@ -17,8 +17,10 @@ resource "aws_autoscaling_group" "web" {
 
   target_group_arns = var.target_group_arns
 
-  health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_type = "ELB"
+  # Nodes return nothing until Puppet has deployed the site, so the grace period must cover
+  # boot plus the first Puppet run (with its retries). An instance refresh also waits this long.
+  health_check_grace_period = 600
 
   instance_refresh {
     strategy = "Rolling"

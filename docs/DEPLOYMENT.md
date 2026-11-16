@@ -33,7 +33,7 @@ aws autoscaling start-instance-refresh --auto-scaling-group-name "$(terraform ou
 
 Follow its progress with `aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$(terraform output -raw asg_name)"`.
 
-A new node counts as healthy as soon as the load balancer health check passes, which can happen before Puppet has configured it (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md), issue 4). Check the site after a refresh finishes.
+A new node passes the health check only after Puppet has deployed the site, and the refresh waits the 600 s grace period for each batch, so a refresh of a few nodes takes 20 to 30 minutes. If the site repository is broken (wrong URL or branch, no `index.html`), new nodes never become healthy and the refresh does not complete; the nodes it has not reached keep serving the last good copy. Fix the repository, or cancel the refresh with `aws autoscaling cancel-instance-refresh`.
 
 ### Replacing the Puppet master
 

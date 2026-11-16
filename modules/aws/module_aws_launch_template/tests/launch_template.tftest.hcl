@@ -152,13 +152,41 @@ run "user_data_is_a_clean_shell_script" {
   }
 
   assert {
-    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "-w \"%%{http_code}\"")
-    error_message = "The curl http_code format string must render with a single percent sign."
+    condition     = !strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "$${")
+    error_message = "No unrendered template placeholder may remain in the script."
+  }
+}
+
+# Known issue 4: nginx must not start before Puppet has deployed the site. Otherwise the node
+# serves the default nginx page, passes the health check and is never replaced if Puppet fails.
+run "nginx_is_left_to_puppet" {
+  command = apply
+
+  assert {
+    condition = (
+      !strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "systemctl start nginx") &&
+      !strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "systemctl enable nginx") &&
+      !strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "--now nginx")
+    )
+    error_message = "User data must not start or enable nginx; Puppet starts it once the site is in place."
   }
 
   assert {
-    condition     = !strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "$${")
-    error_message = "No unrendered template placeholder may remain in the script."
+    condition     = !strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "|| true")
+    error_message = "A failed first Puppet run must not be ignored with || true."
+  }
+
+  assert {
+    condition = (
+      strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "DEADLINE=$((SECONDS + 240))") &&
+      strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "if [ \"$rc\" -eq 0 ] || [ \"$rc\" -eq 2 ]; then")
+    )
+    error_message = "The first Puppet run must be retried for 240 seconds and succeed only on exit code 0 or 2."
+  }
+
+  assert {
+    condition     = strcontains(base64decode(nonsensitive(aws_launch_template.web.user_data)), "--maxwaitforcert 60")
+    error_message = "Each Puppet attempt must give up waiting for its certificate, or the retry deadline is never checked."
   }
 }
 

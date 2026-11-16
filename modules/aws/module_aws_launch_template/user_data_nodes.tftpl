@@ -7,34 +7,12 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "=== User Data Started at $(date) ==="
 
-# Update package cache and install nginx
+# Update package cache and install nginx.
+# nginx is installed but NOT started here. Puppet starts it only after the website files are
+# in place, so the load balancer health check fails until the real site is served.
 echo "Installing nginx..."
 dnf update -y
 dnf install -y nginx git
-
-# Start and enable nginx
-echo "Starting nginx..."
-systemctl start nginx
-systemctl enable nginx
-
-# Wait for nginx to be fully started
-echo "Waiting for nginx to start..."
-for i in {1..10}; do
-    if systemctl is-active --quiet nginx; then
-        echo "nginx is running!"
-        break
-    fi
-    echo "Waiting... ($i/10)"
-    sleep 2
-done
-
-# Verify nginx is running
-echo "Checking nginx status..."
-systemctl status nginx
-
-# Verify nginx is responding
-echo "Testing HTTP response..."
-curl -s -o /dev/null -w "%%{http_code}" http://localhost:80 || echo "curl failed"
 
 # ---------- Puppet agent bootstrap ----------
 
@@ -66,12 +44,31 @@ site_repo_url=${site_repo_url}
 site_repo_branch=${site_repo_branch}
 FACTS
 
-# First run: sends the CSR, waits for it to be signed, applies the catalog.
-# Exit code 2 means "changes applied", so don't let set -e treat it as a failure.
-/opt/puppetlabs/bin/puppet agent --test --waitforcert 30 || true
+# First run: sends the CSR, waits for it to be signed, deploys the site and starts nginx.
+# On a fresh deploy the master may still be installing, so retry for up to 4 minutes.
+# This must fit inside the ASG's health check grace period (600 seconds), boot time included.
+# Exit codes of --test: 0 = no changes, 2 = changes applied; anything else is a failure.
+PUPPET_OK=false
+DEADLINE=$((SECONDS + 240))
+while [ "$SECONDS" -lt "$DEADLINE" ]; do
+  rc=0
+  /opt/puppetlabs/bin/puppet agent --test --waitforcert 15 --maxwaitforcert 60 || rc=$?
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; then
+    PUPPET_OK=true
+    break
+  fi
+  echo "First Puppet run failed (exit $rc), retrying in 20 seconds..."
+  sleep 20
+done
 
 # Keep running every 30 minutes
 systemctl enable --now puppet
+
+if [ "$PUPPET_OK" != true ]; then
+  # nginx stays stopped, so the health check fails and the ASG replaces this node.
+  echo "ERROR: Puppet did not configure this node. The ASG will replace it."
+  exit 1
+fi
 echo "Puppet agent configured as $INSTANCE_ID"
 
 # ---------- end Puppet ----------

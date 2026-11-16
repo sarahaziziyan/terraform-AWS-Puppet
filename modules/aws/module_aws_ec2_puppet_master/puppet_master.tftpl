@@ -68,10 +68,12 @@ class profile::website (
     require => [Package['nginx'], Exec['website-index-check']],
   }
 
+  # Start nginx only once the site is in place. Until then the node fails the load balancer
+  # health check, so it gets no traffic and the ASG replaces it if setup never succeeds.
   service { 'nginx':
     ensure  => running,
     enable  => true,
-    require => Package['nginx'],
+    require => [Package['nginx'], File['/usr/share/nginx/html']],
   }
 }
 EOF

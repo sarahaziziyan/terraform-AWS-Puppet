@@ -223,6 +223,13 @@ run "bootstrap_writes_puppet_code_for_web_nodes" {
     error_message = "site.pp must read the repo URL and branch from the facts the web nodes publish."
   }
 
+  # Known issue 4: nginx must start only after the site files are in place, so a node whose
+  # site deployment failed fails the health check instead of serving the default page.
+  assert {
+    condition     = strcontains(nonsensitive(aws_instance.puppet_master.user_data), "require => [Package['nginx'], File['/usr/share/nginx/html']],")
+    error_message = "The nginx service must require the website files as well as the package."
+  }
+
   assert {
     condition     = strcontains(nonsensitive(aws_instance.puppet_master.user_data), "systemctl enable --now puppetserver")
     error_message = "The bootstrap script must start Puppet Server."

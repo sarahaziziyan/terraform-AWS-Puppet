@@ -50,10 +50,10 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 
 1. **Terraform apply** creates security groups, the Puppet master, the DNS record pointing at the master's private IP, the launch template, ALB and ASG, in dependency order.
 2. **Puppet master boots** (user data): installs Puppet Server, sets its certname and DNS names to the internal FQDN, installs an autosign script that accepts any CSR carrying the shared secret, installs the `vcsrepo` module, and writes the `profile::website` class and `site.pp`.
-3. **Web nodes boot** (user data): install and start nginx (serving its default page for now), install the Puppet agent, write the shared secret into `csr_attributes.yaml`, set `certname` to the EC2 instance ID, and write the site repo URL and branch as Puppet *facts* (`/etc/puppetlabs/facter/facts.d/site.txt`).
-4. **First Puppet run**: the agent contacts the master over port 8140, its certificate request is auto-signed, and the master's catalog (nodes named `i-xxxx...`) clones the repo, copies `index.html` and assets into the nginx web root, and keeps nginx running.
+3. **Web nodes boot** (user data): install nginx without starting it, install the Puppet agent, write the shared secret into `csr_attributes.yaml`, set `certname` to the EC2 instance ID, and write the site repo URL and branch as Puppet *facts* (`/etc/puppetlabs/facter/facts.d/site.txt`).
+4. **First Puppet run**: the agent contacts the master over port 8140, its certificate request is auto-signed, and the master's catalog (nodes named `i-xxxx...`) clones the repo, copies `index.html` and assets into the nginx web root, and only then starts nginx. Until this run succeeds the node answers nothing, so it fails the health check and gets no traffic. The node retries the first run for up to 4 minutes (the master may still be installing on a fresh deploy); if it never succeeds, the node stays unhealthy and the ASG replaces it.
 5. **Steady state**: agents re-check in every 30 minutes, so pushing to the Git branch updates all nodes with no Terraform run.
-6. **Scaling**: a CloudWatch alarm (average CPU above `cpu_threshold` for 2 x 120 s) triggers a +1 instance policy with a 300 s cooldown. The ASG health check uses the ALB, with a 180 s grace period.
+6. **Scaling**: a CloudWatch alarm (average CPU above `cpu_threshold` for 2 x 120 s) triggers a +1 instance policy with a 300 s cooldown. The ASG health check uses the ALB, with a 600 s grace period, which covers boot plus the first Puppet run.
 
 ## Why it works this way (design decisions)
 
@@ -62,6 +62,7 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 | **Terraform for infrastructure, Puppet for configuration** | Each tool does what it is best at. Terraform makes cloud resources reproducibly; Puppet continuously enforces what runs *inside* servers. Content changes do not require touching infrastructure. |
 | **Reusable modules, one per concern** | Small, testable units with explicit inputs/outputs; root `main.tf` reads as a table of contents. |
 | **ASG + ALB with ELB health checks** | Nodes are disposable. Unhealthy ones are replaced automatically and traffic only reaches healthy ones. |
+| **nginx started only by Puppet, after the site files** | A node passes the health check only once it serves the real site. It never serves the default nginx page, and a node whose setup failed is replaced instead of staying "healthy". The cost is a 600 s grace period, which an instance refresh also waits for each batch. |
 | **Explicit template version, rolling instance refresh (50% min healthy)** | The ASG uses the launch template's `latest_version` number, not `$Latest`. When the template changes, the number changes, Terraform updates the ASG, and a rolling refresh replaces running nodes without downtime. Because the template always looks up the newest Amazon Linux 2023 image, a new image release also starts a refresh on the next apply. |
 | **Private Route 53 zone with a stable FQDN for the master** | Nodes find the master by name, not IP, so the master can be replaced without editing node configuration. |
 | **Autosign with a shared secret in the CSR** | ASG nodes appear and disappear unpredictably; manual certificate signing would not scale. The secret restricts autosign to nodes launched from this template. |

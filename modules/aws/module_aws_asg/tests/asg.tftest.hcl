@@ -115,8 +115,8 @@ run "self_healing_uses_elb_health_check" {
   }
 
   assert {
-    condition     = aws_autoscaling_group.web.health_check_grace_period == 180
-    error_message = "The grace period must be 180 seconds so nodes can finish bootstrapping."
+    condition     = aws_autoscaling_group.web.health_check_grace_period == 600
+    error_message = "The grace period must be 600 seconds: nodes answer only after boot plus the first Puppet run (up to 4 minutes of retries)."
   }
 }
 
@@ -132,6 +132,13 @@ run "rolling_refresh_keeps_half_the_fleet" {
   assert {
     condition     = aws_autoscaling_group.web.instance_refresh[0].preferences[0].min_healthy_percentage == 50
     error_message = "Instance refresh must keep at least 50% of the fleet healthy."
+  }
+
+  # During the grace period the ASG counts a new node as healthy whatever the load balancer says.
+  # A short warmup would let a refresh move on before the node serves the site (known issue 4).
+  assert {
+    condition     = try(aws_autoscaling_group.web.instance_refresh[0].preferences[0].instance_warmup, null) == null || try(aws_autoscaling_group.web.instance_refresh[0].preferences[0].instance_warmup, "") == ""
+    error_message = "Instance refresh must use the default warmup (the grace period), not a shorter one."
   }
 }
 
