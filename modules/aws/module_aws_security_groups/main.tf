@@ -1,3 +1,11 @@
+data "aws_region" "current" {}
+
+# AWS-managed list of the addresses EC2 Instance Connect uses in this region. AWS keeps it
+# up to date, so SSH via Instance Connect works in any region without a hard-coded range.
+data "aws_ec2_managed_prefix_list" "instance_connect" {
+  name = "com.amazonaws.${data.aws_region.current.region}.ec2-instance-connect"
+}
+
 resource "aws_security_group" "alb" {
   name_prefix = "secg-"
   description = "Security group for Application Load Balancer"
@@ -61,7 +69,7 @@ resource "aws_vpc_security_group_ingress_rule" "http" {
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   security_group_id = aws_security_group.web.id
   description       = "SSH from EC2 Instance Connect"
-  cidr_ipv4         = "3.0.5.32/29"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.instance_connect.id
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22

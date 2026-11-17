@@ -3,10 +3,24 @@
 # Run from this module's folder:  terraform init && terraform test
 
 mock_provider "aws" {
+  mock_data "aws_region" {
+    defaults = {
+      region = "eu-west-1"
+    }
+  }
+
   mock_data "aws_ec2_managed_prefix_list" {
     defaults = {
       id = "pl-31a34658"
     }
+  }
+}
+
+# Each prefix list gets its own ID, so a test can tell them apart.
+override_data {
+  target = data.aws_ec2_managed_prefix_list.instance_connect
+  values = {
+    id = "pl-0instanceconnect01"
   }
 }
 
@@ -83,9 +97,18 @@ run "web_ssh_limited_to_instance_connect" {
     error_message = "The SSH rule must be attached to the web security group."
   }
 
+  # Known issue 8: the range comes from the region's managed list, not a hard-coded CIDR.
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.ssh.cidr_ipv4 == "3.0.5.32/29"
-    error_message = "SSH must be limited to the EC2 Instance Connect range 3.0.5.32/29."
+    condition = (
+      aws_vpc_security_group_ingress_rule.ssh.prefix_list_id == "pl-0instanceconnect01" &&
+      aws_vpc_security_group_ingress_rule.ssh.cidr_ipv4 == null
+    )
+    error_message = "SSH must be limited to the region's EC2 Instance Connect prefix list, not a fixed address range."
+  }
+
+  assert {
+    condition     = data.aws_ec2_managed_prefix_list.instance_connect.name == "com.amazonaws.eu-west-1.ec2-instance-connect"
+    error_message = "The prefix list must be the one for the current region."
   }
 
   assert {

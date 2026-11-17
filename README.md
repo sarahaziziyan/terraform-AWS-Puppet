@@ -94,7 +94,6 @@ The unit tests mock AWS, so they need no credentials and create nothing.
 - The fleet scales out but never back in.
 - One Puppet server. If it is down, running web servers keep serving, but new ones cannot finish setting up.
 - The Terraform state has no locking.
-- SSH access is set up for region `ap-southeast-1` only.
 
 The full list, with fixes, is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 

@@ -1,5 +1,11 @@
 data "aws_region" "current" {}
 
+# AWS-managed list of the addresses EC2 Instance Connect uses in this region. AWS keeps it
+# up to date, so SSH via Instance Connect works in any region without a hard-coded range.
+data "aws_ec2_managed_prefix_list" "instance_connect" {
+  name = "com.amazonaws.${data.aws_region.current.region}.ec2-instance-connect"
+}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -26,7 +32,7 @@ resource "aws_vpc_security_group_ingress_rule" "puppet_master_puppet" {
 resource "aws_vpc_security_group_ingress_rule" "puppet_master_instance_connect" {
   security_group_id = aws_security_group.puppet_master.id
   description       = "SSH from EC2 Instance Connect"
-  cidr_ipv4         = "3.0.5.32/29"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.instance_connect.id
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22

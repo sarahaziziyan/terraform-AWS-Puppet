@@ -28,9 +28,15 @@ done
 
 echo
 echo "=== bootstrap ==="
-if ! (cd "$ROOT/bootstrap" && terraform init -input=false -backend=false >/dev/null && terraform test); then
+# Use a throwaway working folder (TF_DATA_DIR): if bootstrap/ was initialised with admin
+# credentials, its .terraform folder points at the real S3 state, which terraform-user may not
+# read. The tests need no backend, so they must not touch that folder.
+bootstrap_test_dir="$(mktemp -d)"
+if ! (cd "$ROOT/bootstrap" && export TF_DATA_DIR="$bootstrap_test_dir" &&
+  terraform init -input=false -backend=false >/dev/null && terraform test); then
   failed+=("bootstrap")
 fi
+rm -rf "$bootstrap_test_dir"
 
 echo
 echo "=== root ==="

@@ -9,6 +9,12 @@ mock_provider "aws" {
     }
   }
 
+  mock_data "aws_ec2_managed_prefix_list" {
+    defaults = {
+      id = "pl-0instanceconnect01"
+    }
+  }
+
   mock_data "aws_ami" {
     defaults = {
       id = "ami-0123456789abcdef0"
@@ -60,9 +66,18 @@ run "puppet_port_open_only_to_web_nodes" {
 run "ssh_limited_to_instance_connect" {
   command = apply
 
+  # Known issue 8: the range comes from the region's managed list, not a hard-coded CIDR.
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.puppet_master_instance_connect.cidr_ipv4 == "3.0.5.32/29"
-    error_message = "SSH must be limited to the EC2 Instance Connect range 3.0.5.32/29."
+    condition = (
+      aws_vpc_security_group_ingress_rule.puppet_master_instance_connect.prefix_list_id == data.aws_ec2_managed_prefix_list.instance_connect.id &&
+      aws_vpc_security_group_ingress_rule.puppet_master_instance_connect.cidr_ipv4 == null
+    )
+    error_message = "SSH must be limited to the region's EC2 Instance Connect prefix list, not a fixed address range."
+  }
+
+  assert {
+    condition     = data.aws_ec2_managed_prefix_list.instance_connect.name == "com.amazonaws.ap-southeast-1.ec2-instance-connect"
+    error_message = "The prefix list must be the one for the current region."
   }
 
   assert {

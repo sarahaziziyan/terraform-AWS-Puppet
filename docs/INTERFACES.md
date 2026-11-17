@@ -9,7 +9,7 @@ The project's interfaces are its network endpoints, the Terraform inputs and out
 | CloudFront address (`site_url` output) | HTTPS 443 (HTTP 80 redirects) | Anyone | Serves the website |
 | ALB DNS name (`alb_dns_name` output) | HTTP 80 | CloudFront only (managed prefix list `com.amazonaws.global.cloudfront.origin-facing`) | CloudFront's origin. Target health check: `GET /` must return `200` |
 | Puppet master `puppet.internal.puppet-server.com` | TCP 8140 | Web node security group only | Puppet agent catalog requests and certificate signing |
-| SSH to web nodes and master | TCP 22 | `3.0.5.32/29`, the EC2 Instance Connect range of `ap-southeast-1` only | Operator access |
+| SSH to web nodes and master | TCP 22 | EC2 Instance Connect only (managed prefix list `com.amazonaws.<region>.ec2-instance-connect`) | Operator access |
 
 ## Root module inputs
 
