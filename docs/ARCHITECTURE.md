@@ -80,7 +80,7 @@ Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `te
 
 ## Security notes
 
-- `*.tfvars`, state files and keys are git-ignored. Restrict and encrypt the state bucket.
+- `*.tfvars`, state files and keys are git-ignored. Both state backends write with server-side encryption (`encrypt = true`) and lock the state during runs (`use_lockfile = true`, a `.tflock` object next to the state), so two applies cannot overwrite each other. Restrict access to the state bucket.
 - The autosign secret is stored only in the encrypted SSM parameter, and briefly on each node until its first Puppet run. The master never stores it; `autosign.sh` reads it for each request. A process running on a node can still read it through the node's role; checking that each request comes from a real ASG instance is in [TODO.md](TODO.md). Rotate it with `autosign_secret_version` in `bootstrap/`.
 - The master and the web nodes require IMDSv2 (`http_tokens = "required"`, hop limit 1). A plain GET to the metadata service, as an SSRF bug would send, cannot read user data or credentials. Any process on the instance can still get a token, so this does not protect against code already running there.
 - The root volumes of the master (which holds the Puppet CA key) and the web nodes are encrypted explicitly with the AWS-managed EBS key, whatever the account's default.

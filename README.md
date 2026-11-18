@@ -9,7 +9,7 @@ Unhealthy servers are replaced automatically, and one server is added when avera
 
 ## What you need
 
-- Terraform 1.7 or newer (tested with 1.16.4). This is enforced by `required_version = ">= 1.7"` in `provider.tf` and in each module, so an older version stops with an error. Check yours with `terraform version`
+- Terraform 1.11 or newer (tested with 1.16.4). The main stack requires 1.10 (S3 state locking, `provider.tf`), `bootstrap/` requires 1.11 (write-only attributes) and the modules 1.7; an older version stops with an error. Check yours with `terraform version`
 - AWS provider 6.x (`~> 6.0`), installed automatically by `terraform init`
 - AWS credentials that can create EC2, load balancer, auto scaling, CloudFront, Route 53 and CloudWatch resources (`aws sts get-caller-identity` should work)
 - An existing VPC with at least two subnets in different availability zones
@@ -93,7 +93,6 @@ The unit tests mock AWS, so they need no credentials and create nothing.
 - The HTTPS address is a generated `*.cloudfront.net` name; there is no custom domain yet.
 - The fleet scales out but never back in.
 - One Puppet server. If it is down, running web servers keep serving, but new ones cannot finish setting up.
-- The Terraform state has no locking.
 
 The full list, with fixes, is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 

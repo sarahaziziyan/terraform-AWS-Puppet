@@ -70,6 +70,14 @@ Increase `autosign_secret_version` in `bootstrap/` by one and apply it with admi
 
 The master reads the secret from SSM for every request, so the new one applies immediately. Nodes that are already enrolled keep working. New nodes read the new secret at boot.
 
+## State locking and encryption
+
+Both backends (`provider.tf` and `bootstrap/versions.tf`) set `encrypt = true` and `use_lockfile = true`. During `plan` and `apply`, Terraform creates `<state key>.tflock` next to the state in the bucket and deletes it at the end. A second run started meanwhile stops with "Error acquiring the state lock" instead of overwriting the state.
+
+- After changing backend settings, run `terraform init -reconfigure` once in that folder. The bucket and key are unchanged, so no state is moved.
+- The identity that runs Terraform needs `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the `.tflock` object as well as on the state: `build/online-course/terraform.tfstate.tflock` for `terraform-user`, `bootstrap/online-course/terraform.tfstate.tflock` for the admin.
+- If a run is killed and leaves the lock behind, release it with `terraform force-unlock <LOCK_ID>` (the ID is in the error message). Only do this when no other run is active.
+
 ## Rollback
 
 - **Infrastructure:** revert the commit and apply again. A reverted launch template change creates a new template version and starts a refresh by itself.
@@ -85,4 +93,4 @@ Not supported yet. To add environments, use one state key and one `.tfvars` file
 1. On pull request: `terraform fmt -check -recursive`, `./run_tests.sh`, a linter (`tflint`, `checkov` or `trivy config .`), then `terraform plan` posted to the pull request.
 2. On merge to `main`: apply to staging.
 3. To production: manual approval, then apply the same commit.
-4. Use short-lived credentials (OIDC) instead of stored access keys, and turn on state locking (`use_lockfile = true`, Terraform 1.10 or newer).
+4. Use short-lived credentials (OIDC) instead of stored access keys.

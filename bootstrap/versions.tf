@@ -7,6 +7,12 @@ terraform {
     bucket = "backend-terraform-online-course"
     key    = "bootstrap/online-course/terraform.tfstate"
     region = "ap-southeast-1"
+
+    # encrypt: the state object is always written with server-side encryption.
+    # use_lockfile: S3 native locking. Terraform holds <key>.tflock during plan/apply, so two runs
+    # at once cannot overwrite each other's state (Terraform 1.10 or newer).
+    encrypt      = true
+    use_lockfile = true
   }
 
   required_providers {
