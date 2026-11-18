@@ -19,6 +19,12 @@ mock_provider "aws" {
     }
   }
 
+  mock_resource "aws_lb_listener" {
+    defaults = {
+      arn = "arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:listener/app/alb-test/0123456789abcdef/0123456789abcdef"
+    }
+  }
+
   mock_resource "aws_autoscaling_policy" {
     defaults = {
       arn = "arn:aws:autoscaling:ap-southeast-1:123456789012:scalingPolicy:11111111-2222-3333-4444-555555555555:autoScalingGroupName/asg-test:policyName/cpu-scale-out"
@@ -113,6 +119,27 @@ run "cloudfront_fronts_the_alb" {
   assert {
     condition     = output.site_url == "https://d1234abcd.cloudfront.net"
     error_message = "site_url must be the HTTPS CloudFront address."
+  }
+}
+
+# Known issue 21: CloudFront must send exactly the header the ALB requires, or every request
+# gets 403. The value is generated here, so it must be a non-trivial secret.
+run "cloudfront_and_alb_share_the_origin_header" {
+  command = apply
+
+  assert {
+    condition     = nonsensitive(module.module_aws_cloudfront.origin_header == module.module_aws_alb.required_origin_header)
+    error_message = "CloudFront's origin header (name and value) must match the one the ALB listener rule requires."
+  }
+
+  assert {
+    condition     = nonsensitive(module.module_aws_alb.required_origin_header.value == random_password.origin_header.result)
+    error_message = "The ALB must require the generated secret, not a fixed value."
+  }
+
+  assert {
+    condition     = random_password.origin_header.length >= 32 && random_password.origin_header.special == false
+    error_message = "The secret must be at least 32 letters and digits (the ALB treats * and ? as wildcards)."
   }
 }
 

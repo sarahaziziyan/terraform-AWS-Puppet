@@ -70,6 +70,18 @@ Increase `autosign_secret_version` in `bootstrap/` by one and apply it with admi
 
 The master reads the secret from SSM for every request, so the new one applies immediately. Nodes that are already enrolled keep working. New nodes read the new secret at boot.
 
+## CloudFront origin header secret
+
+CloudFront adds a secret `X-Origin-Verify` header to every request it sends to the ALB, and the ALB answers 403 to requests without it. Terraform generates the value (`random_password.origin_header` in `main.tf`); no variable is needed.
+
+To rotate it:
+
+```bash
+terraform apply -replace=random_password.origin_header
+```
+
+The ALB rule changes within seconds, but CloudFront takes a few minutes to send the new value from every location. Until it does, some requests that miss the cache get 403. Rotate at a quiet time. The first apply that adds the header to an existing stack has the same short window.
+
 ## State locking and encryption
 
 Both backends (`provider.tf` and `bootstrap/versions.tf`) set `encrypt = true` and `use_lockfile = true`. During `plan` and `apply`, Terraform creates `<state key>.tflock` next to the state in the bucket and deletes it at the end. A second run started meanwhile stops with "Error acquiring the state lock" instead of overwriting the state.

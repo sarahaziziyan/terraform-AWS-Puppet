@@ -1,5 +1,15 @@
 locals {
   puppet_master_fqdn = "puppet.internal.puppet-server.com"
+  origin_header_name = "X-Origin-Verify"
+}
+
+# Secret header value that CloudFront adds and the ALB requires (known issue 21), so only this
+# stack's distribution can reach the ALB. It is stored in the (encrypted) state, and AWS shows it
+# in the CloudFront and listener rule settings. Letters and digits only: the ALB treats * and ?
+# as wildcards. Rotate with: terraform apply -replace=random_password.origin_header
+resource "random_password" "origin_header" {
+  length  = 40
+  special = false
 }
 
 # Security groups (ALB and web)
@@ -52,6 +62,9 @@ module "module_aws_alb" {
   vpc_id             = var.vpc_id
   subnet_ids         = var.subnet_ids
   security_group_ids = [module.module_aws_security_groups.alb_security_group_id]
+
+  origin_header_name  = local.origin_header_name
+  origin_header_value = random_password.origin_header.result
 }
 
 # CloudFront: HTTPS for visitors, forwarding to the ALB
@@ -59,6 +72,9 @@ module "module_aws_cloudfront" {
   source = "./modules/aws/module_aws_cloudfront"
 
   alb_dns_name = module.module_aws_alb.dns_name
+
+  origin_header_name  = local.origin_header_name
+  origin_header_value = random_password.origin_header.result
 }
 
 # Auto Scaling Group

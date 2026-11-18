@@ -15,5 +15,16 @@ output "distribution_id" {
 
 output "origin_domain_name" {
   description = "Origin the distribution forwards to (the ALB DNS name)"
-  value       = one(aws_cloudfront_distribution.web.origin[*].domain_name)
+  # The origin block holds the secret header, which marks the whole block sensitive.
+  # The ALB's DNS name itself is not secret.
+  value = nonsensitive(one(aws_cloudfront_distribution.web.origin[*].domain_name))
+}
+
+output "origin_header" {
+  description = "Header name and value the distribution adds to every request sent to the ALB"
+  sensitive   = true
+  value = {
+    name  = one(one(aws_cloudfront_distribution.web.origin).custom_header).name
+    value = one(one(aws_cloudfront_distribution.web.origin).custom_header).value
+  }
 }

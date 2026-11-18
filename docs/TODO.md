@@ -11,4 +11,4 @@ Planned improvements that are not bugs. Problems with the current code are in [K
 - Ask AWS: call `autoscaling:DescribeAutoScalingInstances` (or `ec2:DescribeInstances`) for that instance ID and compare its group name. The master's instance role then needs these read-only permissions.
 - Verify the instance identity document: the node adds its AWS-signed identity document to the request, and the master checks the signature, the account ID and that the instance ID equals the certname.
 
-**Depends on:** known issue 5 (the master needs an instance role).
+**Depends on:** nothing. The master already has an instance role, created by `bootstrap/`; for the first way, add the read-only permissions to that role in `bootstrap/main.tf`.

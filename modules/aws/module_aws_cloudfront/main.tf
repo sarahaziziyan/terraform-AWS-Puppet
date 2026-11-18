@@ -1,6 +1,8 @@
 # HTTPS in front of the load balancer, without a custom domain.
 # Visitors use https://<id>.cloudfront.net with CloudFront's own certificate; plain HTTP is
 # redirected to HTTPS. CloudFront reaches the ALB over HTTP, because the ALB has no certificate.
+# Every request to the ALB carries a secret header, so the ALB can tell this distribution
+# apart from other CloudFront distributions.
 
 # Short cache: Puppet redeploys the site every 30 minutes, so a short TTL keeps content fresh
 # while still taking load off the web nodes.
@@ -37,6 +39,12 @@ resource "aws_cloudfront_distribution" "web" {
   origin {
     origin_id   = "alb"
     domain_name = var.alb_dns_name
+
+    # Added to every request sent to the ALB; never sent to visitors.
+    custom_header {
+      name  = var.origin_header_name
+      value = var.origin_header_value
+    }
 
     custom_origin_config {
       http_port              = 80

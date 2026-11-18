@@ -16,12 +16,20 @@ mock_provider "aws" {
       arn = "arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:targetgroup/tg-test/0123456789abcdef"
     }
   }
+
+  mock_resource "aws_lb_listener" {
+    defaults = {
+      arn = "arn:aws:elasticloadbalancing:ap-southeast-1:123456789012:listener/app/alb-test/0123456789abcdef/0123456789abcdef"
+    }
+  }
 }
 
 variables {
-  vpc_id             = "vpc-0123456789abcdef0"
-  subnet_ids         = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
-  security_group_ids = ["sg-0123456789abcdef0"]
+  vpc_id              = "vpc-0123456789abcdef0"
+  subnet_ids          = ["subnet-0aaaaaaaaaaaaaaa1", "subnet-0bbbbbbbbbbbbbbb2"]
+  security_group_ids  = ["sg-0123456789abcdef0"]
+  origin_header_name  = "X-Origin-Verify"
+  origin_header_value = "TestOriginSecret0123456789"
 }
 
 # The load balancer must sit in the subnets and security groups the caller passes in.
@@ -39,8 +47,8 @@ run "alb_uses_given_network" {
   }
 }
 
-# Traffic enters on HTTP 80 and is forwarded to the web target group.
-run "listener_forwards_http_to_target_group" {
+# Traffic enters on HTTP 80.
+run "listener_is_http_80" {
   command = apply
 
   assert {
@@ -52,16 +60,66 @@ run "listener_forwards_http_to_target_group" {
     condition     = aws_lb_listener.http.load_balancer_arn == aws_lb.web.arn
     error_message = "The listener must belong to the web ALB."
   }
+}
+
+# Known issue 21: the security group admits every CloudFront distribution, so the listener
+# must reject requests that do not carry this stack's secret header.
+run "requests_without_origin_header_are_rejected" {
+  command = apply
 
   assert {
-    condition     = aws_lb_listener.http.default_action[0].type == "forward"
-    error_message = "The listener's default action must forward traffic."
+    condition = (
+      aws_lb_listener.http.default_action[0].type == "fixed-response" &&
+      aws_lb_listener.http.default_action[0].fixed_response[0].status_code == "403"
+    )
+    error_message = "The listener's default action must answer 403, never forward."
   }
 
   assert {
-    condition     = aws_lb_listener.http.default_action[0].target_group_arn == aws_lb_target_group.web.arn
-    error_message = "The listener must forward to the web target group."
+    condition     = aws_lb_listener.http.default_action[0].target_group_arn == null || aws_lb_listener.http.default_action[0].target_group_arn == ""
+    error_message = "The default action must not forward to the target group."
   }
+}
+
+run "requests_with_origin_header_reach_the_web_nodes" {
+  command = apply
+
+  assert {
+    condition     = aws_lb_listener_rule.from_cloudfront.listener_arn == aws_lb_listener.http.arn
+    error_message = "The header rule must belong to the HTTP listener."
+  }
+
+  assert {
+    condition = (
+      one(aws_lb_listener_rule.from_cloudfront.condition).http_header[0].http_header_name == "X-Origin-Verify" &&
+      nonsensitive(one(aws_lb_listener_rule.from_cloudfront.condition).http_header[0].values) == toset(["TestOriginSecret0123456789"])
+    )
+    error_message = "The rule must match exactly the header name and secret value passed to the module."
+  }
+
+  assert {
+    condition     = length(aws_lb_listener_rule.from_cloudfront.condition) == 1
+    error_message = "The header must be the rule's only condition."
+  }
+
+  assert {
+    condition = (
+      aws_lb_listener_rule.from_cloudfront.action[0].type == "forward" &&
+      aws_lb_listener_rule.from_cloudfront.action[0].target_group_arn == aws_lb_target_group.web.arn
+    )
+    error_message = "Requests with the header must be forwarded to the web target group."
+  }
+}
+
+# The ALB treats * and ? in header values as wildcards; a weak or wildcard value must be refused.
+run "weak_origin_header_value_is_rejected" {
+  command = plan
+
+  variables {
+    origin_header_value = "*"
+  }
+
+  expect_failures = [var.origin_header_value]
 }
 
 # The target group must match how nginx nodes are registered (instance targets, HTTP 80).

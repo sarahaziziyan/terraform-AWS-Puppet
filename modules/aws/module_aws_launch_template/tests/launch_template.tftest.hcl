@@ -63,7 +63,8 @@ run "ami_lookup_is_amazon_linux_2023" {
 }
 
 # The scale-out alarm evaluates 120 second periods, which needs detailed monitoring.
-# New template versions must also become the default so the ASG picks them up.
+# update_default_version keeps the template's default version current. The ASG does not rely
+# on it: it uses the explicit latest_version number (known issue 2).
 run "monitoring_and_versioning" {
   command = apply
 
@@ -215,7 +216,7 @@ run "nginx_is_left_to_puppet" {
   }
 }
 
-# Regression test for the README "Known issues" entry: $CLONE_DIR is used but never set,
+# Regression test for a fixed bug: an earlier script used $CLONE_DIR without setting it,
 # so `cp -a "$CLONE_DIR"/. ...` would copy the node's whole root filesystem into the web root.
 run "user_data_does_not_use_undefined_clone_dir" {
   command = apply

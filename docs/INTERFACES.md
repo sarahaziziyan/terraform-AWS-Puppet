@@ -7,13 +7,13 @@ The project's interfaces are its network endpoints, the Terraform inputs and out
 | Endpoint | Protocol / port | Who may connect | Purpose |
 |---|---|---|---|
 | CloudFront address (`site_url` output) | HTTPS 443 (HTTP 80 redirects) | Anyone | Serves the website |
-| ALB DNS name (`alb_dns_name` output) | HTTP 80 | CloudFront only (managed prefix list `com.amazonaws.global.cloudfront.origin-facing`) | CloudFront's origin. Target health check: `GET /` must return `200` |
+| ALB DNS name (`alb_dns_name` output) | HTTP 80 | CloudFront only (managed prefix list `com.amazonaws.global.cloudfront.origin-facing`), and only requests with the secret `X-Origin-Verify` header are forwarded; others get `403` | CloudFront's origin. Target health check: `GET /` must return `200` |
 | Puppet master `puppet.internal.puppet-server.com` | TCP 8140 | Web node security group only | Puppet agent catalog requests and certificate signing |
 | SSH to web nodes and master | TCP 22 | EC2 Instance Connect only (managed prefix list `com.amazonaws.<region>.ec2-instance-connect`) | Operator access |
 
 ## Root module inputs
 
-See the table in the [README](../README.md#variables). All are required; none have defaults.
+See the table in the [README](../README.md#variables). All are required except `autosign_secret_parameter_name`, `puppet_master_instance_profile_name` and `web_node_instance_profile_name`, whose defaults match the names `bootstrap/` creates.
 
 ## Root module outputs
 
@@ -36,11 +36,13 @@ See the table in the [README](../README.md#variables). All are required; none ha
 | `module_aws_ec2_puppet_master` | `vpc_id`, `subnet_id`, `key_name`, `web_security_group_id`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `private_ip`, `instance_profile_name` |
 | `module_aws_dns` | `vpc_id`, `puppet_master_fqdn`, `puppet_master_private_ip` | `zone_id` |
 | `module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `id`, `latest_version`, `instance_profile_name` |
-| `module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids` | `dns_name`, `zone_id`, `target_group_arn` |
-| `module_aws_cloudfront` | `alb_dns_name` | `domain_name`, `url`, `distribution_id`, `origin_domain_name` |
+| `module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids`, `origin_header_name`, `origin_header_value` (sensitive) | `dns_name`, `zone_id`, `target_group_arn`, `required_origin_header` (sensitive) |
+| `module_aws_cloudfront` | `alb_dns_name`, `origin_header_name`, `origin_header_value` (sensitive) | `domain_name`, `url`, `distribution_id`, `origin_domain_name`, `origin_header` (sensitive) |
 | `module_aws_asg` | `subnet_ids`, `launch_template_id`, `launch_template_version`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_threshold` | `name`, `min_size`, `desired_capacity`, `max_size`, `launch_template_version` |
 
-All module inputs are required. Every module requires the AWS provider `~> 6.0` (`versions.tf`).
+All module inputs are required. Every module requires the AWS provider `~> 6.0` (`versions.tf`). The root also requires the random provider `~> 3.7`, which generates the origin header secret.
+
+The root passes the same header name (`X-Origin-Verify`) and generated value to both `module_aws_alb` and `module_aws_cloudfront`; the root wiring test checks that they match.
 
 ## Bootstrap interface
 

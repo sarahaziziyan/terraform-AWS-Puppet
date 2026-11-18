@@ -11,7 +11,23 @@ mock_provider "aws" {
 }
 
 variables {
-  alb_dns_name = "alb-test-123456789.ap-southeast-1.elb.amazonaws.com"
+  alb_dns_name        = "alb-test-123456789.ap-southeast-1.elb.amazonaws.com"
+  origin_header_name  = "X-Origin-Verify"
+  origin_header_value = "TestOriginSecret0123456789"
+}
+
+# Known issue 21: every request to the ALB carries the secret header, so the ALB can reject
+# requests from other CloudFront distributions.
+run "origin_requests_carry_the_secret_header" {
+  command = apply
+
+  assert {
+    condition = (
+      one(one(aws_cloudfront_distribution.web.origin).custom_header).name == "X-Origin-Verify" &&
+      nonsensitive(one(one(aws_cloudfront_distribution.web.origin).custom_header).value) == "TestOriginSecret0123456789"
+    )
+    error_message = "The ALB origin must send the header name and secret value passed to the module."
+  }
 }
 
 # Known issue 10: visitors must get HTTPS. Plain HTTP is redirected, not served.

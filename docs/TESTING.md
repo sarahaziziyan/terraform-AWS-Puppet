@@ -72,6 +72,7 @@ Deploy to a scratch environment: a separate state key and `terraform.tfvars`, wi
 | Site is served over HTTPS | `curl -i $(terraform output -raw site_url)/` | `200` and your `index.html`, not the default nginx page |
 | HTTP is redirected | `curl -i http://$(terraform output -raw site_url \| sed 's#https://##')/` | `301` to the `https://` address |
 | ALB is not public | `curl -m 10 http://$(terraform output -raw alb_dns_name)/` | Times out: only CloudFront may connect |
+| ALB needs the origin header | From a web node (inside the VPC, but not CloudFront): `curl -i http://<alb_dns_name>/` | `403 Forbidden`: requests without the secret header are not forwarded |
 | Targets healthy | `aws elbv2 describe-target-health --target-group-arn $(terraform output -raw target_group_arn)` | All `healthy` |
 | Nodes enrolled | On the master: `sudo /opt/puppetlabs/bin/puppetserver ca list --all` | One signed certificate per instance ID |
 | Agent run works | On a node: `sudo /opt/puppetlabs/bin/puppet agent --test` | Exit code 0 or 2, no errors |
