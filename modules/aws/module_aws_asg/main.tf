@@ -40,8 +40,61 @@ resource "aws_autoscaling_group" "web" {
     # The scaling policy changes desired_capacity at runtime. Without this,
     # every apply would reset the fleet to var.desired_capacity and undo scale-out.
     # var.desired_capacity is therefore only the initial size when the ASG is created.
-    ignore_changes = [desired_capacity]
+    # min_size: the working-hours schedule sets it to 0 at night. Without this, an apply at night
+    # would reset it to var.min_size and start the servers. ignore_changes cannot depend on a
+    # variable, so it is ignored even when the schedule is off: var.min_size reaches an existing
+    # group only through the schedule's start action (ADR 0026).
+    ignore_changes = [desired_capacity, min_size]
   }
+}
+
+# ---------- Working-hours schedule ----------
+# Outside working hours the group runs no servers. Only min_size and desired_capacity change:
+# max_size stays under Terraform's control (-1 = leave unchanged).
+
+locals {
+  start_hm = split(":", var.schedule_start)
+  stop_hm  = split(":", var.schedule_stop)
+
+  # Cron: minute hour day-of-month month day-of-week, in var.schedule_time_zone.
+  start_recurrence = "${tonumber(local.start_hm[1])} ${tonumber(local.start_hm[0])} * * ${var.schedule_days}"
+  stop_recurrence  = "${tonumber(local.stop_hm[1])} ${tonumber(local.stop_hm[0])} * * ${var.schedule_days}"
+}
+
+# Start of the working day: back to the normal fleet size. New servers serve the site once boot
+# plus the first Puppet run are done (about 10 minutes).
+resource "aws_autoscaling_schedule" "start" {
+  count = var.schedule_enabled ? 1 : 0
+
+  scheduled_action_name  = "working-hours-start"
+  autoscaling_group_name = aws_autoscaling_group.web.name
+  recurrence             = local.start_recurrence
+  time_zone              = var.schedule_time_zone
+
+  min_size         = var.min_size
+  desired_capacity = var.desired_capacity
+  max_size         = -1
+
+  lifecycle {
+    precondition {
+      condition     = var.schedule_start != var.schedule_stop
+      error_message = "schedule_start and schedule_stop must be different times."
+    }
+  }
+}
+
+# End of the working day: terminate every server.
+resource "aws_autoscaling_schedule" "stop" {
+  count = var.schedule_enabled ? 1 : 0
+
+  scheduled_action_name  = "working-hours-stop"
+  autoscaling_group_name = aws_autoscaling_group.web.name
+  recurrence             = local.stop_recurrence
+  time_zone              = var.schedule_time_zone
+
+  min_size         = 0
+  desired_capacity = 0
+  max_size         = -1
 }
 
 # Target tracking: keep the group's average CPU near var.cpu_target, between min_size and max_size.

@@ -1,6 +1,6 @@
 # 0015. Ignore selected changes on the Puppet master and the ASG
 
-- **Status:** Accepted
+- **Status:** Accepted (extended by [0026](0026-working-hours-schedule.md): the ASG also ignores `min_size`)
 - **Date:** 2026-10-19 (master `user_data`); extended 2026-11-10 (master `ami`, ASG `desired_capacity`)
 - **Deciders:** Sarah Aziziyan
 - **Supersedes:** —

@@ -21,11 +21,27 @@ Stacks created before [ADR 0025](adr/0025-target-tracking-scaling.md): rename `c
 | Website content | Push to the branch in `site_repo_branch` | Nodes pick it up on their next Puppet run (up to 30 minutes). No Terraform run |
 | Web node setup (user data, instance type) | `terraform apply` | Apply creates a new launch template version and updates the ASG to it, which starts a rolling instance refresh. Running nodes are replaced a batch at a time, keeping at least 50% healthy. `terraform plan` shows this as an in-place change to the ASG's `launch_template.version` |
 | Nothing (a new Amazon Linux 2023 image was released) | `terraform apply` | The launch template always looks up the newest image, so apply creates a new version and starts a refresh, the same as above. If `plan` shows `image_id` changing on the launch template, this is why |
-| ASG sizes or CPU target | Edit `terraform.tfvars`, then `terraform apply` | Minimum, maximum and `cpu_target` are applied in place. `asg_desired_capacity` is used only when the ASG is first created; later changes to it are ignored so that apply does not undo scale-out. To resize a running fleet, change `asg_min_size` (to add nodes) or `asg_max_size` (to remove nodes) and apply |
+| ASG sizes or CPU target | Edit `terraform.tfvars`, then `terraform apply` | `asg_max_size` and `cpu_target` are applied in place. `asg_min_size` and `asg_desired_capacity` are applied when the ASG is created and by the schedule's start action, so on a running fleet they take effect at the next start time; apply does not change them, so that it does not start servers at night or undo scale-out. To remove nodes now, lower `asg_max_size` |
+| Working hours | Edit the `web_schedule_*` values in `terraform.tfvars`, then `terraform apply` | The scheduled actions are updated in place and used from their next run. `web_schedule_enabled = false` deletes them, and the fleet stays at its current size: turn it off during working hours, or the servers stay at 0 (see below) |
 | Security groups, load balancer | `terraform apply` | Security groups are replaced create-before-destroy |
 | CloudFront settings | `terraform apply` | Changes take a few minutes to reach all CloudFront locations. Cached pages expire within 5 minutes |
 | Puppet code or master bootstrap script | Edit the files on the master directly | Terraform ignores changes to the master's user data, so `apply` does nothing |
 | A new version of the Puppet server module | Change `?ref=` in `main.tf` to the new tag, run `terraform init`, then `terraform plan` | Read the module's CHANGELOG first; a major version means a breaking change. Do not apply if the plan replaces `aws_instance.puppet_master` and you did not intend it |
+
+### Working-hours schedule
+
+With `web_schedule_enabled = true`, the `working-hours-start` action sets the ASG's minimum to `asg_min_size` and desired to `asg_desired_capacity`, and `working-hours-stop` sets both to 0. See [ADR 0026](adr/0026-working-hours-schedule.md).
+
+The five `web_schedule_*` variables have no defaults: `terraform.tfvars` must set all of them, even with the schedule off. Copy the block from `terraform_example_tfvars`.
+
+- Terraform ignores the ASG's minimum after creation, so an apply at night does not start the servers. A new `asg_min_size` reaches the fleet at the next start time.
+- If you turn the schedule off while the servers are at 0, or need a new `asg_min_size` immediately, recreate the ASG with the Terraform values. Its servers are replaced, so the site answers 503 for about 10 minutes:
+
+```bash
+terraform apply -replace=module.web_asg.aws_autoscaling_group.web
+```
+
+- See the next scheduled runs (read-only): `aws autoscaling describe-scheduled-actions --auto-scaling-group-name "$(terraform output -raw asg_name)"`.
 
 ### Replace every node without changing the template
 

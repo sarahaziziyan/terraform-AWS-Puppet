@@ -48,3 +48,8 @@ output "asg_max_size" {
   value       = module.web_asg.max_size
 }
 
+
+output "web_schedule" {
+  description = "Working-hours schedule of the web servers (cron recurrences and time zone), or null when it is off"
+  value       = module.web_asg.schedule
+}

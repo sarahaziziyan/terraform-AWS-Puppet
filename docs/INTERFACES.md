@@ -26,7 +26,8 @@ See the table in the [README](../README.md#variables). All are required except `
 | `alb_zone_id` | Hosted zone ID of the ALB (for alias records) |
 | `target_group_arn` | Target group ARN |
 | `asg_name` | Auto Scaling Group name |
-| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | ASG minimum and maximum as last applied by Terraform; desired capacity as last read from AWS (the scaling policy changes it) |
+| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | ASG maximum as last applied by Terraform; minimum and desired capacity as last read from AWS (the schedule and the scaling policy change them) |
+| `web_schedule` | Cron recurrences and time zone of the working-hours schedule, or `null` when it is off |
 
 ## Module interfaces
 
@@ -38,7 +39,7 @@ See the table in the [README](../README.md#variables). All are required except `
 | `web_launch_template` | `modules/aws/module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `id`, `latest_version`, `instance_profile_name` |
 | `alb` | `modules/aws/module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids`, `origin_header_name`, `origin_header_value` (sensitive) | `dns_name`, `zone_id`, `target_group_arn`, `required_origin_header` (sensitive) |
 | `cdn` | `modules/aws/module_aws_cloudfront` | `alb_dns_name`, `origin_header_name`, `origin_header_value` (sensitive) | `domain_name`, `url`, `distribution_id`, `origin_domain_name`, `origin_header` (sensitive) |
-| `web_asg` | `modules/aws/module_aws_asg` | `subnet_ids`, `launch_template_id`, `launch_template_version`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_target` | `name`, `min_size`, `desired_capacity`, `max_size`, `launch_template_version`, `cpu_target` |
+| `web_asg` | `modules/aws/module_aws_asg` | `subnet_ids`, `launch_template_id`, `launch_template_version`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_target`, `schedule_enabled`, `schedule_time_zone`, `schedule_days`, `schedule_start`, `schedule_stop` | `name`, `min_size`, `desired_capacity`, `max_size`, `launch_template_version`, `cpu_target`, `schedule` |
 
 All module inputs are required. Every module requires the AWS provider `~> 6.0` (`versions.tf`). The root also requires the random provider `~> 3.7`, which generates the origin header secret.
 

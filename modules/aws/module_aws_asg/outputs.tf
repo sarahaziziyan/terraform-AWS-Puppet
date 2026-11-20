@@ -27,3 +27,12 @@ output "cpu_target" {
   description = "Average CPU % the target tracking policy keeps the group at"
   value       = one(aws_autoscaling_policy.cpu_target.target_tracking_configuration).target_value
 }
+
+output "schedule" {
+  description = "Working-hours schedule (cron recurrences and time zone), or null when it is off"
+  value = var.schedule_enabled ? {
+    time_zone        = one(aws_autoscaling_schedule.start).time_zone
+    start_recurrence = one(aws_autoscaling_schedule.start).recurrence
+    stop_recurrence  = one(aws_autoscaling_schedule.stop).recurrence
+  } : null
+}

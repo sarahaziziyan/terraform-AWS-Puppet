@@ -95,4 +95,10 @@ module "web_asg" {
   desired_capacity = var.asg_desired_capacity
   max_size         = var.asg_max_size
   cpu_target       = var.cpu_target
+
+  schedule_enabled   = var.web_schedule_enabled
+  schedule_time_zone = var.web_schedule_time_zone
+  schedule_days      = var.web_schedule_days
+  schedule_start     = var.web_schedule_start
+  schedule_stop      = var.web_schedule_stop
 }

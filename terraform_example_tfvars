@@ -13,5 +13,13 @@ asg_desired_capacity = 3
 asg_max_size         = 25
 cpu_target           = 60
 
+# Working-hours schedule for the web servers.
+# Outside these hours the ASG scales to 0 servers and the site answers 503.
+web_schedule_enabled   = true             # false = servers run 24/7
+web_schedule_time_zone = "Asia/Singapore" # IANA time zone name (UTC+8)
+web_schedule_days      = "MON-FRI"        # cron day-of-week field: "MON-FRI", "MON-SAT", "*" (every day)
+web_schedule_start     = "09:00"          # HH:MM, 24-hour; servers start booting at this time
+web_schedule_stop      = "18:00"          # HH:MM, 24-hour; all servers are terminated at this time
+
 site_repo_url    = "https://github.com/yourrepo.git"
 site_repo_branch = "main"

@@ -62,8 +62,9 @@ Wait 5 to 10 minutes after `apply` while the servers set themselves up.
 | `subnet_id` | Subnet for the Puppet server |
 | `site_repo_url` | Git repository that contains your website |
 | `site_repo_branch` | Branch to deploy |
-| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | Minimum, starting and maximum number of web servers. The starting number applies only when the group is first created |
+| `asg_min_size`, `asg_desired_capacity`, `asg_max_size` | Minimum, starting and maximum number of web servers in working hours. Minimum and starting number are applied when the group is created and at each schedule start, not by later applies |
 | `cpu_target` | Average CPU % the servers are kept at: servers are added above it and removed below it |
+| `web_schedule_enabled`, `web_schedule_time_zone`, `web_schedule_days`, `web_schedule_start`, `web_schedule_stop` | Working hours: outside them there are no web servers. The time zone is an IANA name (e.g. `Asia/Singapore`), days a cron day-of-week field (e.g. `MON-FRI`), start and stop `HH:MM` 24-hour times. Set `web_schedule_enabled = false` to run 24/7; the other four must still be set |
 | `autosign_secret_parameter_name`, `puppet_master_instance_profile_name`, `web_node_instance_profile_name` | Optional. Names of what `bootstrap/` created; the defaults match its defaults |
 
 ## Use it
@@ -91,6 +92,7 @@ The unit tests mock AWS, so they need no credentials and create nothing.
 ## Limits
 
 - The HTTPS address is a generated `*.cloudfront.net` name; there is no custom domain yet.
+- With the working-hours schedule on, the site answers 503 outside working hours and is up about 10 minutes after the start time.
 - One Puppet server. If it is down, running web servers keep serving, but new ones cannot finish setting up.
 
 The full list, with fixes, is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).

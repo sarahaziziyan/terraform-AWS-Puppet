@@ -20,7 +20,7 @@ Architecture Decision Records (ADRs) for this stack. Each record follows Michael
 | [0012](0012-autosign-secret-as-terraform-variable.md) | Autosign secret as a sensitive Terraform variable | **Superseded** | 2026-10-19 | Secret must reach master and nodes | [0020](0020-autosign-secret-in-ssm-via-bootstrap.md) |
 | [0013](0013-ssh-from-hard-coded-instance-connect-range.md) | SSH from a hard-coded Instance Connect range | **Superseded** | 2026-10-17 | SSH for debugging without opening port 22 widely | [0021](0021-ssh-through-instance-connect-prefix-list.md) |
 | [0014](0014-one-module-per-concern.md) | One reusable module per concern | Accepted | 2026-10-20 | Flat root files had implicit interfaces and no tests | — (extended by [0024](0024-puppet-server-module-own-repository.md)) |
-| [0015](0015-lifecycle-ignore-changes.md) | `ignore_changes` on the master and the ASG | Accepted | 2026-10-19 | Applies rebuilt the master and undid scale-out | — |
+| [0015](0015-lifecycle-ignore-changes.md) | `ignore_changes` on the master and the ASG | Accepted | 2026-10-19 | Applies rebuilt the master and undid scale-out | — (extended by [0026](0026-working-hours-schedule.md)) |
 | [0016](0016-imdsv2-and-encrypted-root-volumes.md) | Require IMDSv2, encrypt root volumes | Accepted | 2026-11-11 | IMDSv1 open to SSRF; encryption left to account defaults | — |
 | [0017](0017-explicit-template-version-rolling-refresh.md) | Explicit template version and rolling refresh | Accepted | 2026-11-16 | Template changes did not reach running nodes | — |
 | [0018](0018-nginx-started-only-by-puppet.md) | nginx started only by Puppet | Accepted | 2026-11-16 | Nodes served the default page and stayed healthy if Puppet failed | — |
@@ -31,6 +31,7 @@ Architecture Decision Records (ADRs) for this stack. Each record follows Michael
 | [0023](0023-secret-origin-header.md) | Secret origin header between CloudFront and the ALB | Accepted | 2026-11-18 | CloudFront prefix list is shared by all distributions | — |
 | [0024](0024-puppet-server-module-own-repository.md) | Puppet server module in its own repository | Accepted | 2026-11-20 | Master changes should be released on purpose | — |
 | [0025](0025-target-tracking-scaling.md) | Scale with a CPU target tracking policy | Accepted | 2026-11-20 | The fleet scaled out but never back in | — |
+| [0026](0026-working-hours-schedule.md) | Web servers only in working hours, behind a switch | Accepted | 2026-11-20 | Servers ran and cost money at night and at weekends | — |
 
 ## How decisions changed
 
@@ -45,6 +46,7 @@ flowchart LR
   A2[0002 S3 backend] -->|extended by| A22[0022 Encrypt + lock state]
   A14[0014 One module per concern] -->|extended by| A24[0024 Puppet module own repo]
   A3[0003 ASG behind ALB] -->|scaling replaced by| A25[0025 Target tracking]
+  A15[0015 ignore_changes] -->|extended by| A26[0026 Working-hours schedule]
 ```
 
 ## Adding a record

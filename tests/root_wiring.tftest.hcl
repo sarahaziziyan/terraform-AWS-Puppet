@@ -63,6 +63,12 @@ variables {
   asg_desired_capacity = 2
   asg_max_size         = 4
   cpu_target           = 70
+
+  web_schedule_enabled   = true
+  web_schedule_time_zone = "Asia/Singapore"
+  web_schedule_days      = "MON-FRI"
+  web_schedule_start     = "09:00"
+  web_schedule_stop      = "18:00"
 }
 
 # All six modules must accept what the root gives them (names, types, required inputs).
@@ -105,6 +111,40 @@ run "cpu_target_flows_from_root_variable" {
   assert {
     condition     = module.web_asg.cpu_target == var.cpu_target
     error_message = "cpu_target must reach the ASG's target tracking policy."
+  }
+}
+
+# The web_schedule_* root variables must reach the ASG's scheduled actions.
+run "web_schedule_flows_from_root_variables" {
+  command = apply
+
+  variables {
+    web_schedule_time_zone = "Asia/Tokyo"
+    web_schedule_days      = "MON-SAT"
+    web_schedule_start     = "08:15"
+    web_schedule_stop      = "19:45"
+  }
+
+  assert {
+    condition = output.web_schedule == {
+      time_zone        = "Asia/Tokyo"
+      start_recurrence = "15 8 * * MON-SAT"
+      stop_recurrence  = "45 19 * * MON-SAT"
+    }
+    error_message = "The web_schedule_* variables must reach the ASG's start and stop actions."
+  }
+}
+
+run "web_schedule_can_be_turned_off_from_root" {
+  command = apply
+
+  variables {
+    web_schedule_enabled = false
+  }
+
+  assert {
+    condition     = output.web_schedule == null
+    error_message = "web_schedule_enabled = false must remove the schedule."
   }
 }
 

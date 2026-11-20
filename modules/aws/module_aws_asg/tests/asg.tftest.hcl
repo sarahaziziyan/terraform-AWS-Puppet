@@ -21,6 +21,12 @@ variables {
   desired_capacity        = 2
   max_size                = 4
   cpu_target              = 70
+
+  schedule_enabled   = true
+  schedule_time_zone = "Asia/Singapore"
+  schedule_days      = "MON-FRI"
+  schedule_start     = "09:00"
+  schedule_stop      = "18:00"
 }
 
 # Fleet size is controlled by the caller; the module must not change the numbers.
@@ -217,4 +223,165 @@ run "cpu_target_must_be_a_percentage" {
   }
 
   expect_failures = [var.cpu_target]
+}
+
+# ---------- Working-hours schedule (ADR 0026) ----------
+
+# Monday to Friday, 09:00 to 18:00 Singapore time (the file's inputs).
+run "schedule_runs_weekday_working_hours" {
+  command = apply
+
+  assert {
+    condition     = length(aws_autoscaling_schedule.start) == 1 && length(aws_autoscaling_schedule.stop) == 1
+    error_message = "With schedule_enabled = true there must be one start and one stop action."
+  }
+
+  assert {
+    condition = (
+      aws_autoscaling_schedule.start[0].recurrence == "0 9 * * MON-FRI" &&
+      aws_autoscaling_schedule.stop[0].recurrence == "0 18 * * MON-FRI"
+    )
+    error_message = "The servers must start at 09:00 and stop at 18:00, Monday to Friday."
+  }
+
+  assert {
+    condition = (
+      aws_autoscaling_schedule.start[0].time_zone == "Asia/Singapore" &&
+      aws_autoscaling_schedule.stop[0].time_zone == "Asia/Singapore"
+    )
+    error_message = "Both actions must use the schedule_time_zone input."
+  }
+
+  assert {
+    condition = (
+      aws_autoscaling_schedule.start[0].autoscaling_group_name == aws_autoscaling_group.web.name &&
+      aws_autoscaling_schedule.stop[0].autoscaling_group_name == aws_autoscaling_group.web.name
+    )
+    error_message = "Both actions must belong to this Auto Scaling Group."
+  }
+}
+
+# Stop terminates every server; start restores the normal size. Neither touches max_size,
+# which stays under Terraform's control.
+run "schedule_sizes" {
+  command = apply
+
+  assert {
+    condition = (
+      aws_autoscaling_schedule.stop[0].min_size == 0 &&
+      aws_autoscaling_schedule.stop[0].desired_capacity == 0 &&
+      aws_autoscaling_schedule.stop[0].max_size == -1
+    )
+    error_message = "The stop action must set min and desired to 0 and leave max unchanged (-1)."
+  }
+
+  assert {
+    condition = (
+      aws_autoscaling_schedule.start[0].min_size == var.min_size &&
+      aws_autoscaling_schedule.start[0].desired_capacity == var.desired_capacity &&
+      aws_autoscaling_schedule.start[0].max_size == -1
+    )
+    error_message = "The start action must restore min_size and desired_capacity and leave max unchanged (-1)."
+  }
+}
+
+# Days, times and time zone come from the inputs; minutes and hours lose their leading zeros.
+run "schedule_uses_given_days_times_and_zone" {
+  command = apply
+
+  variables {
+    schedule_time_zone = "Europe/Berlin"
+    schedule_days      = "MON-SAT"
+    schedule_start     = "07:30"
+    schedule_stop      = "21:05"
+  }
+
+  assert {
+    condition = (
+      aws_autoscaling_schedule.start[0].recurrence == "30 7 * * MON-SAT" &&
+      aws_autoscaling_schedule.stop[0].recurrence == "5 21 * * MON-SAT"
+    )
+    error_message = "The cron recurrences must be built from schedule_start, schedule_stop and schedule_days."
+  }
+
+  assert {
+    condition     = aws_autoscaling_schedule.start[0].time_zone == "Europe/Berlin"
+    error_message = "The time zone must come from schedule_time_zone."
+  }
+
+  assert {
+    condition     = output.schedule.start_recurrence == "30 7 * * MON-SAT" && output.schedule.time_zone == "Europe/Berlin"
+    error_message = "The schedule output must report the recurrences and time zone."
+  }
+}
+
+# Off: no scheduled actions, the servers run all the time.
+run "schedule_can_be_turned_off" {
+  command = apply
+
+  variables {
+    schedule_enabled = false
+  }
+
+  assert {
+    condition     = length(aws_autoscaling_schedule.start) == 0 && length(aws_autoscaling_schedule.stop) == 0
+    error_message = "With schedule_enabled = false there must be no scheduled actions."
+  }
+
+  assert {
+    condition     = output.schedule == null
+    error_message = "The schedule output must be null when the schedule is off."
+  }
+}
+
+# The stop action sets min_size to 0 at night, so an apply must not reset it (Option B, ADR 0026).
+# The group exists from the runs above with min_size = 1.
+run "apply_does_not_reset_min_size" {
+  command = apply
+
+  variables {
+    min_size = 2
+  }
+
+  assert {
+    condition     = aws_autoscaling_group.web.min_size == 1
+    error_message = "min_size must be ignored on an existing group (lifecycle ignore_changes), so an apply at night does not start the servers."
+  }
+
+  assert {
+    condition     = aws_autoscaling_schedule.start[0].min_size == 2
+    error_message = "A new min_size must still reach the start action, which applies it at the next working day."
+  }
+}
+
+run "schedule_rejects_bad_time" {
+  command = plan
+
+  variables {
+    schedule_start = "9:00"
+    schedule_stop  = "24:00"
+  }
+
+  expect_failures = [var.schedule_start, var.schedule_stop]
+}
+
+run "schedule_rejects_bad_days" {
+  command = plan
+
+  variables {
+    schedule_days = "MONDAY"
+  }
+
+  expect_failures = [var.schedule_days]
+}
+
+run "schedule_rejects_equal_start_and_stop" {
+  command = plan
+
+  variables {
+    schedule_start = "09:00"
+    schedule_stop  = "09:00"
+  }
+
+  expect_failures = [aws_autoscaling_schedule.start]
 }

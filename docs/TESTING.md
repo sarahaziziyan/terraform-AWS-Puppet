@@ -83,6 +83,7 @@ Deploy to a scratch environment: a separate state key and `terraform.tfvars`, wi
 | Secret not on nodes | On a node: `sudo ls /etc/puppetlabs/puppet/csr_attributes.yaml` | `No such file or directory` (deleted after the first Puppet run) |
 | Node setup | On a node: `tail -n 20 /var/log/user_data.log` | Ends with `Puppet agent configured as i-...`, not `ERROR: Puppet did not configure this node` |
 | Scale-out | Generate CPU load above `cpu_target` on the nodes (for example with `stress-ng`) | The `TargetTracking-*-AlarmHigh-*` alarm fires and nodes are added |
+| Working hours | `aws autoscaling describe-scheduled-actions --auto-scaling-group-name $(terraform output -raw asg_name)` | `working-hours-start` and `working-hours-stop` with the expected recurrence and time zone; after the stop time, no instances and `curl` on `site_url` gives `503` |
 | Scale-in | Stop the load and wait (scale-in is gradual, about 15 minutes or more) | The `TargetTracking-*-AlarmLow-*` alarm fires and nodes are removed, never below `asg_min_size` |
 
 Bootstrap logs: `/var/log/user_data.log` on web nodes, `/var/log/cloud-init-output.log` on the master.
