@@ -106,7 +106,7 @@ The ALB rule changes within seconds, but CloudFront takes a few minutes to send 
 Both backends (`provider.tf` and `bootstrap/versions.tf`) set `encrypt = true` and `use_lockfile = true`. During `plan` and `apply`, Terraform creates `<state key>.tflock` next to the state in the bucket and deletes it at the end. A second run started meanwhile stops with "Error acquiring the state lock" instead of overwriting the state.
 
 - After changing backend settings, run `terraform init -reconfigure` once in that folder. The bucket and key are unchanged, so no state is moved.
-- The identity that runs Terraform needs `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the `.tflock` object as well as on the state: `build/online-course/terraform.tfstate.tflock` for `terraform-user`, `bootstrap/online-course/terraform.tfstate.tflock` for the admin.
+- The identity that runs Terraform needs `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the `.tflock` object as well as on the state: `build/online-app/terraform.tfstate.tflock` for `terraform-user`, `bootstrap/online-app/terraform.tfstate.tflock` for the admin.
 - If a run is killed and leaves the lock behind, release it with `terraform force-unlock <LOCK_ID>` (the ID is in the error message). Only do this when no other run is active.
 
 ## Rollback

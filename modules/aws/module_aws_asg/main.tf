@@ -31,7 +31,7 @@ resource "aws_autoscaling_group" "web" {
 
   tag {
     key                 = "Name"
-    value               = "online-course-instance"
+    value               = "online-app-instance"
     propagate_at_launch = true
   }
 

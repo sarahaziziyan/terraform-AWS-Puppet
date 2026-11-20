@@ -85,9 +85,9 @@ run "instances_are_tagged" {
   assert {
     condition = anytrue([
       for s in aws_launch_template.web.tag_specifications :
-      s.resource_type == "instance" && s.tags["Name"] == "online-course" && s.tags["Created_By"] == "Terraform"
+      s.resource_type == "instance" && s.tags["Name"] == "online-app" && s.tags["Created_By"] == "Terraform"
     ])
-    error_message = "Instances must be tagged Name=online-course and Created_By=Terraform."
+    error_message = "Instances must be tagged Name=online-app and Created_By=Terraform."
   }
 }
 

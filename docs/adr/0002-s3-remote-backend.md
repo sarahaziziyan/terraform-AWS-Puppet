@@ -13,7 +13,7 @@ Terraform keeps a state file that maps the configuration to real AWS resources. 
 
 ## Decision
 
-The root stack uses the `s3` backend (bucket `backend-terraform-online-course`, region `ap-southeast-1`), configured in [provider.tf](../../provider.tf). The `bootstrap/` configuration uses the same bucket with its own key.
+The root stack uses the `s3` backend (bucket `backend-terraform-online-app`, region `ap-southeast-1`), configured in [provider.tf](../../provider.tf). The `bootstrap/` configuration uses the same bucket with its own key.
 
 ## Considered options
 

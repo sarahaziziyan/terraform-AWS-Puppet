@@ -4,8 +4,8 @@ terraform {
   required_version = ">= 1.10"
 
   backend "s3" {
-    bucket = "backend-terraform-online-course"
-    key    = "build/online-course/terraform.tfstate"
+    bucket = "backend-terraform-online-app"
+    key    = "build/online-app/terraform.tfstate"
     region = "ap-southeast-1"
 
     # encrypt: the state object is always written with server-side encryption.

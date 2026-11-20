@@ -155,9 +155,9 @@ run "name_tag_propagates_to_instances" {
   assert {
     condition = anytrue([
       for t in aws_autoscaling_group.web.tag :
-      t.key == "Name" && t.value == "online-course-instance" && t.propagate_at_launch
+      t.key == "Name" && t.value == "online-app-instance" && t.propagate_at_launch
     ])
-    error_message = "The ASG must propagate a Name tag of online-course-instance to its instances."
+    error_message = "The ASG must propagate a Name tag of online-app-instance to its instances."
   }
 }
 
