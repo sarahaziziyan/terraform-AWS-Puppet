@@ -31,7 +31,7 @@ The Puppet server module (instance, its security group and bootstrap script) liv
 
 - Changes now span two repositories.
 - Renaming the module call needs a `moved` block, or Terraform plans to replace the master.
-- Known issues 16 and 17 are now fixed in the other repository.
+- Known issues 16 and 17 must now be fixed in the other repository.
 
 ## Links
 

@@ -21,7 +21,7 @@
 
 - **Secret header checked by the ALB**: no extra cost, works with the current setup.
 - **AWS WAF on the ALB**: rejected for this purpose because of cost.
-- **CloudFront VPC origins with a private ALB**: Considered later; blocked on private subnets. need a NAT gateway, about $30+ a month, so no. 
+- **CloudFront VPC origins with a private ALB**: considered later and rejected. It needs private subnets, and the nodes would then need a NAT gateway (about $30 or more a month).
 
 ## Consequences
 

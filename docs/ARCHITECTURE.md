@@ -46,7 +46,7 @@ flowchart LR
     └── module_aws_asg/               # Auto Scaling Group, scale-out policy, CPU alarm
 ```
 
-Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `tests/` folder, and refers to nothing outside its own folder, so it can move to its own repository. The two bootstrap scripts are `.tftpl` templates.
+Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `tests/` folder, and refers to nothing outside its own folder, so it can move to its own repository. The web nodes' bootstrap script is a `.tftpl` template (`module_aws_launch_template/user_data_nodes.tftpl`).
 
 The Puppet server module (instance, its security group and bootstrap script) has already moved: it lives in [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server), is versioned with tags (`vX.Y.Z`, created by release-please), and `main.tf` uses it with `?ref=v1.0.0`. In `main.tf` it is called `puppet_server`.
 

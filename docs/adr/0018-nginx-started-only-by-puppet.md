@@ -21,7 +21,7 @@ Node user data started nginx at boot. Until the first Puppet run deployed the si
 ## Considered options
 
 - **Let Puppet start nginx**: health means "serves the real site".
-- **A custom health check endpoint** considered and rejected: “/ already proves the real content is served. A separate endpoint could say healthy when the site isn’t.
+- **A custom health check endpoint**: rejected. `/` already proves the real content is served; a separate endpoint could report healthy when the site is not.
 
 ## Consequences
 

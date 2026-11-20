@@ -24,7 +24,7 @@ As a sensitive Terraform variable ([0012](0012-autosign-secret-as-terraform-vari
 ## Considered options
 
 - **SSM Parameter Store, ephemeral + write-only**: the secret never reaches state, plan, tfvars or user data.
-- **Secrets Manager**: also listed as a fix for known issue 5. cost and simplicity was issue.
+- **Secrets Manager**: also listed as a fix for known issue 5; rejected on cost and simplicity.
 - **Keep the sensitive variable** ([0012](0012-autosign-secret-as-terraform-variable.md)): secret in plain text in several places.
 
 ## Consequences

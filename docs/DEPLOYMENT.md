@@ -99,7 +99,7 @@ Both backends (`provider.tf` and `bootstrap/versions.tf`) set `encrypt = true` a
 
 ## More than one environment
 
-Not supported yet. To add environments, use one state key and one `.tfvars` file per environment. The `internal.puppet-server.com` domain, the `puppet-master` security group name and the `Name` tags are hard-coded and would need to vary per environment.
+Not supported yet. To add environments, use one state key and one `.tfvars` file per environment. The `internal.puppet-server.com` domain and the `Name` tags are hard-coded here, and the `puppet-master` security group name in the Puppet server module; all would need to vary per environment.
 
 ## Suggested CI/CD (not implemented)
 

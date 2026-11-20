@@ -22,8 +22,8 @@ With the site deployed from user data ([0007](0007-serve-site-from-user-data.md)
 
 - **Terraform + Puppet**: each tool does what it is best at; content changes need no Terraform run.
 - **Keep deploying from user data** ([0007](0007-serve-site-from-user-data.md)): no master to run, but no updates to running nodes.
-- **Ansible**: Ansible was considered first, but chose an agent-based pull model (Puppet) over a push model needing a central runner.
-  
+- **Ansible**: considered first, but we chose Puppet's agent-based pull model over Ansible's push model, which needs a central runner.
+
 ## Consequences
 
 ### Good
