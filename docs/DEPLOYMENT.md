@@ -23,6 +23,7 @@ Always read `terraform plan` before applying.
 | Security groups, load balancer | `terraform apply` | Security groups are replaced create-before-destroy |
 | CloudFront settings | `terraform apply` | Changes take a few minutes to reach all CloudFront locations. Cached pages expire within 5 minutes |
 | Puppet code or master bootstrap script | Edit the files on the master directly | Terraform ignores changes to the master's user data, so `apply` does nothing |
+| A new version of the Puppet server module | Change `?ref=` in `main.tf` to the new tag, run `terraform init`, then `terraform plan` | Read the module's CHANGELOG first; a major version means a breaking change. Do not apply if the plan replaces `aws_instance.puppet_master` and you did not intend it |
 
 ### Replace every node without changing the template
 

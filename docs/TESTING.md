@@ -34,6 +34,8 @@ terraform test
 
 Each module is self-contained so it can move to its own repository. It has its own `versions.tf` and its own `tests/` folder with its own mocks and inputs, and refers to nothing outside its folder. The root wiring test stays in this repository.
 
+The Puppet server module's tests live in its own repository, [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server), and run there in GitHub Actions on every pull request. Here, the root wiring test checks only that the pinned version still accepts the root's inputs and provides the outputs it uses. `terraform init` downloads the module from GitHub, so the root suite needs internet access.
+
 The unit tests do not prove that AWS accepts the configuration, that the bootstrap scripts run, or that the Puppet code compiles. Sections 4 and 5 cover those.
 
 ## 2. Static checks
@@ -56,7 +58,7 @@ terraform plan -out=tfplan
 
 ## 4. Puppet code checks
 
-The Puppet code is embedded in `modules/aws/module_aws_ec2_puppet_master/puppet_master.tftpl`, so it cannot be linted in place. Copy the `profile::website` class and the `site.pp` content into `.pp` files, replace each `$${` with `${`, then run:
+The Puppet code is embedded in `puppet_master.tftpl` in the [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server) repository, so it cannot be linted in place. Copy the `profile::website` class and the `site.pp` content into `.pp` files, replace each `$${` with `${`, then run:
 
 ```bash
 puppet parser validate website.pp site.pp

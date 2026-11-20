@@ -33,7 +33,7 @@ See the table in the [README](../README.md#variables). All are required except `
 | Module | Inputs | Outputs |
 |---|---|---|
 | `module_aws_security_groups` | `vpc_id` | `alb_security_group_id`, `web_security_group_id` |
-| `module_aws_ec2_puppet_master` | `vpc_id`, `subnet_id`, `key_name`, `web_security_group_id`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `private_ip`, `instance_profile_name` |
+| `module_aws_ec2_puppet_master` (from [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server) `v1.0.0`) | `vpc_id`, `subnet_id`, `key_name`, `web_security_group_id`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `private_ip`, `instance_profile_name` |
 | `module_aws_dns` | `vpc_id`, `puppet_master_fqdn`, `puppet_master_private_ip` | `zone_id` |
 | `module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `id`, `latest_version`, `instance_profile_name` |
 | `module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids`, `origin_header_name`, `origin_header_value` (sensitive) | `dns_name`, `zone_id`, `target_group_arn`, `required_origin_header` (sensitive) |
@@ -58,7 +58,7 @@ The root passes the same header name (`X-Origin-Verify`) and generated value to 
 
 ## Puppet interface
 
-The launch template module (nodes) and the Puppet master module must agree on these. Each module's tests check its own side.
+The launch template module (nodes) and the Puppet master module must agree on these. Each module's tests check its own side; the master's tests are in the terraform-aws-puppet-server repository. When you upgrade that module, check that its README still lists the same items.
 
 | Item | Node side | Master side |
 |---|---|---|

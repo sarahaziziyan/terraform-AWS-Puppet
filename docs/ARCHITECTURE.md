@@ -28,7 +28,7 @@ flowchart LR
 
 ```
 .
-├── main.tf                 # Wires the modules together
+├── main.tf                 # Wires the modules together (the Puppet server module comes from GitHub)
 ├── bootstrap/              # Admin-applied once: autosign secret (SSM), instance roles, PassRole for terraform-user
 ├── provider.tf             # S3 backend + AWS provider
 ├── variables.tf            # Root inputs
@@ -39,7 +39,6 @@ flowchart LR
 ├── docs/                   # This documentation
 └── modules/aws/
     ├── module_aws_security_groups/   # ALB + web security groups
-    ├── module_aws_ec2_puppet_master/ # Puppet server instance, its SG, bootstrap script
     ├── module_aws_dns/               # Private Route 53 zone + record for the master
     ├── module_aws_launch_template/   # Web node template + bootstrap script
     ├── module_aws_alb/               # Load balancer, target group, listener
@@ -48,6 +47,8 @@ flowchart LR
 ```
 
 Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `tests/` folder, and refers to nothing outside its own folder, so it can move to its own repository. The two bootstrap scripts are `.tftpl` templates.
+
+The Puppet server module (instance, its security group and bootstrap script) has already moved: it lives in [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server), is versioned with tags (`vX.Y.Z`, created by release-please), and `main.tf` uses it with `?ref=v1.0.0`. Its module name in `main.tf` is still `module_aws_ec2_puppet_master`, because Terraform tracks the running server under that name.
 
 ## Data and control flow
 

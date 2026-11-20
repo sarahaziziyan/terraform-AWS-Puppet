@@ -20,8 +20,12 @@ module "module_aws_security_groups" {
 }
 
 # Puppet master (instance and its security group)
+# Lives in its own repository. To upgrade, change ?ref= to a newer tag, run `terraform init`
+# and read the plan: it must never replace aws_instance.puppet_master unless you mean it.
+# Keep the module name: Terraform tracks the running server under it.
 module "module_aws_ec2_puppet_master" {
-  source                = "./modules/aws/module_aws_ec2_puppet_master"
+  source = "git::https://github.com/sarahaziziyan/terraform-aws-puppet-server.git?ref=v1.0.0"
+
   vpc_id                = var.vpc_id
   subnet_id             = var.subnet_id
   key_name              = var.key_name
