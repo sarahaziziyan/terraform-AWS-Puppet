@@ -48,7 +48,9 @@ flowchart LR
 
 Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `tests/` folder, and refers to nothing outside its own folder, so it can move to its own repository. The two bootstrap scripts are `.tftpl` templates.
 
-The Puppet server module (instance, its security group and bootstrap script) has already moved: it lives in [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server), is versioned with tags (`vX.Y.Z`, created by release-please), and `main.tf` uses it with `?ref=v1.0.0`. Its module name in `main.tf` is still `module_aws_ec2_puppet_master`, because Terraform tracks the running server under that name.
+The Puppet server module (instance, its security group and bootstrap script) has already moved: it lives in [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server), is versioned with tags (`vX.Y.Z`, created by release-please), and `main.tf` uses it with `?ref=v1.0.0`. In `main.tf` it is called `puppet_server`.
+
+The modules' names in `main.tf` describe their role in the stack: `security_groups`, `puppet_server`, `internal_dns`, `web_launch_template`, `alb`, `cdn` and `web_asg`. They were renamed from the folder-style `module_aws_*` names with `moved` blocks, which were removed once the rename was applied. The folders under `modules/aws/` keep their names until each module moves to its own repository.
 
 ## Data and control flow
 

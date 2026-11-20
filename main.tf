@@ -13,7 +13,7 @@ resource "random_password" "origin_header" {
 }
 
 # Security groups (ALB and web)
-module "module_aws_security_groups" {
+module "security_groups" {
   source = "./modules/aws/module_aws_security_groups"
 
   vpc_id = var.vpc_id
@@ -22,14 +22,15 @@ module "module_aws_security_groups" {
 # Puppet master (instance and its security group)
 # Lives in its own repository. To upgrade, change ?ref= to a newer tag, run `terraform init`
 # and read the plan: it must never replace aws_instance.puppet_master unless you mean it.
-# Keep the module name: Terraform tracks the running server under it.
-module "module_aws_ec2_puppet_master" {
+# Terraform tracks the running server under this module name: renaming it needs a `moved` block
+# from the old name until the rename is applied, or Terraform plans to replace the server.
+module "puppet_server" {
   source = "git::https://github.com/sarahaziziyan/terraform-aws-puppet-server.git?ref=v1.0.0"
 
   vpc_id                = var.vpc_id
   subnet_id             = var.subnet_id
   key_name              = var.key_name
-  web_security_group_id = module.module_aws_security_groups.web_security_group_id
+  web_security_group_id = module.security_groups.web_security_group_id
   puppet_master_fqdn    = local.puppet_master_fqdn
 
   autosign_secret_parameter_name = var.autosign_secret_parameter_name
@@ -37,20 +38,20 @@ module "module_aws_ec2_puppet_master" {
 }
 
 # Internal DNS (private zone and Puppet master record)
-module "module_aws_dns" {
+module "internal_dns" {
   source = "./modules/aws/module_aws_dns"
 
   vpc_id                   = var.vpc_id
   puppet_master_fqdn       = local.puppet_master_fqdn
-  puppet_master_private_ip = module.module_aws_ec2_puppet_master.private_ip
+  puppet_master_private_ip = module.puppet_server.private_ip
 }
 
 # Launch template for the web nodes
-module "module_aws_launch_template" {
+module "web_launch_template" {
   source = "./modules/aws/module_aws_launch_template"
 
   key_name           = var.key_name
-  security_group_ids = [module.module_aws_security_groups.web_security_group_id]
+  security_group_ids = [module.security_groups.web_security_group_id]
   site_repo_url      = var.site_repo_url
   site_repo_branch   = var.site_repo_branch
   puppet_master_fqdn = local.puppet_master_fqdn
@@ -60,35 +61,35 @@ module "module_aws_launch_template" {
 }
 
 # Application Load Balancer
-module "module_aws_alb" {
+module "alb" {
   source = "./modules/aws/module_aws_alb"
 
   vpc_id             = var.vpc_id
   subnet_ids         = var.subnet_ids
-  security_group_ids = [module.module_aws_security_groups.alb_security_group_id]
+  security_group_ids = [module.security_groups.alb_security_group_id]
 
   origin_header_name  = local.origin_header_name
   origin_header_value = random_password.origin_header.result
 }
 
 # CloudFront: HTTPS for visitors, forwarding to the ALB
-module "module_aws_cloudfront" {
+module "cdn" {
   source = "./modules/aws/module_aws_cloudfront"
 
-  alb_dns_name = module.module_aws_alb.dns_name
+  alb_dns_name = module.alb.dns_name
 
   origin_header_name  = local.origin_header_name
   origin_header_value = random_password.origin_header.result
 }
 
 # Auto Scaling Group
-module "module_aws_asg" {
+module "web_asg" {
   source = "./modules/aws/module_aws_asg"
 
   subnet_ids              = var.subnet_ids
-  launch_template_id      = module.module_aws_launch_template.id
-  launch_template_version = module.module_aws_launch_template.latest_version
-  target_group_arns       = [module.module_aws_alb.target_group_arn]
+  launch_template_id      = module.web_launch_template.id
+  launch_template_version = module.web_launch_template.latest_version
+  target_group_arns       = [module.alb.target_group_arn]
 
   min_size         = var.asg_min_size
   desired_capacity = var.asg_desired_capacity

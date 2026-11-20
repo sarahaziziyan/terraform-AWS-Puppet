@@ -30,7 +30,7 @@ Always read `terraform plan` before applying.
 A launch template change starts a refresh on its own. To replace every node without changing anything, for example after replacing the Puppet master, have Terraform recreate the launch template. The ASG then points at the new template, which starts the same rolling refresh:
 
 ```bash
-terraform apply -replace=module.module_aws_launch_template.aws_launch_template.web
+terraform apply -replace=module.web_launch_template.aws_launch_template.web
 ```
 
 Follow its progress (read-only) with `aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$(terraform output -raw asg_name)"`.
@@ -42,7 +42,7 @@ A new node passes the health check only after Puppet has deployed the site, and 
 Avoid it. A new master has a new certificate authority, so every node must be replaced afterwards (see the section above). To do it on purpose:
 
 ```bash
-terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet_master
+terraform apply -replace=module.puppet_server.aws_instance.puppet_master
 ```
 
 Terraform ignores changes to the master's AMI and user data, so a newer Ubuntu image or an edited bootstrap script never replaces it. The master therefore keeps the image it was first built from: patch it in place with `apt`.
@@ -60,7 +60,7 @@ Stacks deployed before `bootstrap/` existed have the secret built into the maste
 3. Replace the master. Terraform ignores changes to its boot script, so a plain apply would leave it on the old secret and new nodes could not enrol:
 
 ```bash
-terraform apply -replace=module.module_aws_ec2_puppet_master.aws_instance.puppet_master
+terraform apply -replace=module.puppet_server.aws_instance.puppet_master
 ```
 
 The same apply creates a new launch template version, so the nodes are replaced by a rolling refresh. Running nodes keep serving the site until their replacements are healthy.

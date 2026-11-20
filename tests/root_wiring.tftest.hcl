@@ -102,8 +102,8 @@ run "asg_uses_launch_template_latest_version" {
   command = apply
 
   assert {
-    condition     = module.module_aws_asg.launch_template_version == "7"
-    error_message = "The ASG must use module_aws_launch_template.latest_version as its launch template version."
+    condition     = module.web_asg.launch_template_version == "7"
+    error_message = "The ASG must use module.web_launch_template.latest_version as its launch template version."
   }
 }
 
@@ -112,7 +112,7 @@ run "cloudfront_fronts_the_alb" {
   command = apply
 
   assert {
-    condition     = module.module_aws_cloudfront.origin_domain_name == output.alb_dns_name
+    condition     = module.cdn.origin_domain_name == output.alb_dns_name
     error_message = "CloudFront must use this stack's ALB as its origin."
   }
 
@@ -128,12 +128,12 @@ run "cloudfront_and_alb_share_the_origin_header" {
   command = apply
 
   assert {
-    condition     = nonsensitive(module.module_aws_cloudfront.origin_header == module.module_aws_alb.required_origin_header)
+    condition     = nonsensitive(module.cdn.origin_header == module.alb.required_origin_header)
     error_message = "CloudFront's origin header (name and value) must match the one the ALB listener rule requires."
   }
 
   assert {
-    condition     = nonsensitive(module.module_aws_alb.required_origin_header.value == random_password.origin_header.result)
+    condition     = nonsensitive(module.alb.required_origin_header.value == random_password.origin_header.result)
     error_message = "The ALB must require the generated secret, not a fixed value."
   }
 
@@ -150,8 +150,8 @@ run "autosign_secret_comes_from_ssm" {
 
   assert {
     condition = (
-      module.module_aws_ec2_puppet_master.instance_profile_name == var.puppet_master_instance_profile_name &&
-      module.module_aws_launch_template.instance_profile_name == var.web_node_instance_profile_name
+      module.puppet_server.instance_profile_name == var.puppet_master_instance_profile_name &&
+      module.web_launch_template.instance_profile_name == var.web_node_instance_profile_name
     )
     error_message = "The master and the launch template must use their own bootstrap instance profiles."
   }

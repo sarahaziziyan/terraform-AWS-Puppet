@@ -30,19 +30,19 @@ See the table in the [README](../README.md#variables). All are required except `
 
 ## Module interfaces
 
-| Module | Inputs | Outputs |
-|---|---|---|
-| `module_aws_security_groups` | `vpc_id` | `alb_security_group_id`, `web_security_group_id` |
-| `module_aws_ec2_puppet_master` (from [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server) `v1.0.0`) | `vpc_id`, `subnet_id`, `key_name`, `web_security_group_id`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `private_ip`, `instance_profile_name` |
-| `module_aws_dns` | `vpc_id`, `puppet_master_fqdn`, `puppet_master_private_ip` | `zone_id` |
-| `module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `id`, `latest_version`, `instance_profile_name` |
-| `module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids`, `origin_header_name`, `origin_header_value` (sensitive) | `dns_name`, `zone_id`, `target_group_arn`, `required_origin_header` (sensitive) |
-| `module_aws_cloudfront` | `alb_dns_name`, `origin_header_name`, `origin_header_value` (sensitive) | `domain_name`, `url`, `distribution_id`, `origin_domain_name`, `origin_header` (sensitive) |
-| `module_aws_asg` | `subnet_ids`, `launch_template_id`, `launch_template_version`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_threshold` | `name`, `min_size`, `desired_capacity`, `max_size`, `launch_template_version` |
+| Module (name in `main.tf`) | Source | Inputs | Outputs |
+|---|---|---|---|
+| `security_groups` | `modules/aws/module_aws_security_groups` | `vpc_id` | `alb_security_group_id`, `web_security_group_id` |
+| `puppet_server` | [terraform-aws-puppet-server](https://github.com/sarahaziziyan/terraform-aws-puppet-server) `v1.0.0` | `vpc_id`, `subnet_id`, `key_name`, `web_security_group_id`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `private_ip`, `instance_profile_name` |
+| `internal_dns` | `modules/aws/module_aws_dns` | `vpc_id`, `puppet_master_fqdn`, `puppet_master_private_ip` | `zone_id` |
+| `web_launch_template` | `modules/aws/module_aws_launch_template` | `key_name`, `security_group_ids`, `site_repo_url`, `site_repo_branch`, `puppet_master_fqdn`, `autosign_secret_parameter_name`, `instance_profile_name` | `id`, `latest_version`, `instance_profile_name` |
+| `alb` | `modules/aws/module_aws_alb` | `vpc_id`, `subnet_ids`, `security_group_ids`, `origin_header_name`, `origin_header_value` (sensitive) | `dns_name`, `zone_id`, `target_group_arn`, `required_origin_header` (sensitive) |
+| `cdn` | `modules/aws/module_aws_cloudfront` | `alb_dns_name`, `origin_header_name`, `origin_header_value` (sensitive) | `domain_name`, `url`, `distribution_id`, `origin_domain_name`, `origin_header` (sensitive) |
+| `web_asg` | `modules/aws/module_aws_asg` | `subnet_ids`, `launch_template_id`, `launch_template_version`, `target_group_arns`, `min_size`, `desired_capacity`, `max_size`, `cpu_threshold` | `name`, `min_size`, `desired_capacity`, `max_size`, `launch_template_version` |
 
 All module inputs are required. Every module requires the AWS provider `~> 6.0` (`versions.tf`). The root also requires the random provider `~> 3.7`, which generates the origin header secret.
 
-The root passes the same header name (`X-Origin-Verify`) and generated value to both `module_aws_alb` and `module_aws_cloudfront`; the root wiring test checks that they match.
+The root passes the same header name (`X-Origin-Verify`) and generated value to both `alb` and `cdn`; the root wiring test checks that they match.
 
 ## Bootstrap interface
 
