@@ -63,23 +63,28 @@ The modules' names in `main.tf` describe their role in the stack: `security_grou
 
 ## Why it works this way (design decisions)
 
-| Decision | Reason |
-|---|---|
-| **Terraform for infrastructure, Puppet for configuration** | Each tool does what it is best at. Terraform makes cloud resources reproducibly; Puppet continuously enforces what runs *inside* servers. Content changes do not require touching infrastructure. |
-| **Reusable modules, one per concern** | Small, testable units with explicit inputs/outputs; root `main.tf` reads as a table of contents. |
-| **ASG + ALB with ELB health checks** | Nodes are disposable. Unhealthy ones are replaced automatically and traffic only reaches healthy ones. |
-| **nginx started only by Puppet, after the site files** | A node passes the health check only once it serves the real site. It never serves the default nginx page, and a node whose setup failed is replaced instead of staying "healthy". The cost is a 600 s grace period, which an instance refresh also waits for each batch. |
-| **Explicit template version, rolling instance refresh (50% min healthy)** | The ASG uses the launch template's `latest_version` number, not `$Latest`. When the template changes, the number changes, Terraform updates the ASG, and a rolling refresh replaces running nodes without downtime. Because the template always looks up the newest Amazon Linux 2023 image, a new image release also starts a refresh on the next apply. |
-| **Private Route 53 zone with a stable FQDN for the master** | Nodes find the master by name, not IP, so the master can be replaced without editing node configuration. |
-| **Autosign with a shared secret in the CSR** | ASG nodes appear and disappear unpredictably; manual certificate signing would not scale. The secret restricts autosign to nodes launched from this template. |
-| **Instance ID as Puppet certname** | Unique per node and available at boot, so replaced nodes never clash with old certificates. |
-| **Site repo/branch passed as Puppet facts** | Keeps a single source of truth in `terraform.tfvars`; Puppet code stays generic. |
-| **S3 remote backend** | Shared, durable state instead of a local file. |
-| **CloudFront for HTTPS, without a custom domain** | Gives visitors HTTPS with CloudFront's own certificate, which needs no domain. The ALB's security group accepts traffic only from CloudFront's managed prefix list. That list is shared by every CloudFront distribution, so the stack's own distribution also adds a secret `X-Origin-Verify` header, and the ALB answers 403 to any request without it. The HTTPS address is therefore the only way in. Pages are cached for 5 minutes, so Puppet's site updates appear within minutes. |
-| **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. SSH is limited to EC2 Instance Connect, using the region's AWS-managed prefix list. |
-| **`ignore_changes = [user_data, ami]` on the master** | Prevents a bootstrap script edit or a newly published Ubuntu image from destroying and rebuilding the Puppet server (and its CA). |
-| **`ignore_changes = [desired_capacity]` on the ASG** | The scaling policy owns the running node count. Without this, every apply would reset the fleet to `asg_desired_capacity` and undo scale-out. |
-| **Autosign secret in SSM, created by an admin-applied `bootstrap/` config** | Terraform generates the secret as an ephemeral value and writes it write-only (`value_wo`), so it is never in a plan, the state, tfvars or user data. The instances read it at boot through roles whose only permission is `ssm:GetParameter` on that parameter. The roles are created by an administrator, so `terraform-user` never gets to create IAM roles: it may only pass these two roles to EC2. |
+A summary of the decisions that are in force. Each one has an Architecture Decision Record with its context, the options considered, its consequences and what it replaced. The full history, including decisions that were later changed, is in the [decision log](adr/README.md).
+
+| Decision | Reason | ADR |
+|---|---|---|
+| **Terraform for infrastructure, Puppet for configuration** | Each tool does what it is best at. Content changes need no Terraform run. | [0008](adr/0008-terraform-infrastructure-puppet-configuration.md) |
+| **Reusable modules, one per concern** | Small, testable units with explicit inputs and outputs; root `main.tf` reads as a table of contents. | [0014](adr/0014-one-module-per-concern.md) |
+| **Puppet server module in its own repository** | Versioned with tags, so upgrading the master is a deliberate `?ref=` change. | [0024](adr/0024-puppet-server-module-own-repository.md) |
+| **ASG + ALB with ELB health checks** | Nodes are disposable: unhealthy ones are replaced and traffic only reaches healthy ones. | [0003](adr/0003-asg-behind-alb.md) |
+| **nginx started only by Puppet, after the site files** | A node passes the health check only once it serves the real site. Costs a 600 s grace period. | [0018](adr/0018-nginx-started-only-by-puppet.md) |
+| **Explicit template version, rolling instance refresh (50% min healthy)** | A template change, or a new Amazon Linux image, rolls out to running nodes without downtime. | [0017](adr/0017-explicit-template-version-rolling-refresh.md) |
+| **Private Route 53 zone with a stable FQDN for the master** | Nodes find the master by name, so it can be replaced without editing node configuration. | [0009](adr/0009-private-dns-for-puppet-master.md) |
+| **Autosign with a shared secret in the CSR** | ASG nodes appear unpredictably; the secret limits autosign to nodes from this template. | [0011](adr/0011-autosign-with-shared-secret.md) |
+| **Autosign secret in SSM, created by an admin-applied `bootstrap/` config** | The secret is never in a plan, the state, tfvars or user data, and `terraform-user` never creates IAM roles. | [0020](adr/0020-autosign-secret-in-ssm-via-bootstrap.md) |
+| **Instance ID as Puppet certname** | Unique per node and known at boot, so replaced nodes never clash with old certificates. | [0010](adr/0010-instance-id-as-certname.md) |
+| **Site repo/branch passed as Puppet facts** | One source of truth in `terraform.tfvars`; Puppet code stays generic. | [0008](adr/0008-terraform-infrastructure-puppet-configuration.md) |
+| **S3 remote backend, encrypted and locked** | Shared, durable state; two applies cannot overwrite each other. | [0002](adr/0002-s3-remote-backend.md), [0022](adr/0022-encrypt-and-lock-state.md) |
+| **CloudFront for HTTPS, without a custom domain** | HTTPS with CloudFront's own certificate; the ALB accepts only CloudFront's addresses. | [0019](adr/0019-cloudfront-for-https.md) |
+| **Secret `X-Origin-Verify` header** | CloudFront's address list is shared by every distribution; the ALB answers 403 without this stack's header. | [0023](adr/0023-secret-origin-header.md) |
+| **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. | [0004](adr/0004-security-groups-reference-each-other.md) |
+| **SSH only through EC2 Instance Connect** | Uses the region's AWS-managed prefix list, so it works in any region. | [0021](adr/0021-ssh-through-instance-connect-prefix-list.md) |
+| **IMDSv2 required, root volumes encrypted** | Blocks SSRF-style metadata reads; disks are encrypted whatever the account default. | [0016](adr/0016-imdsv2-and-encrypted-root-volumes.md) |
+| **`ignore_changes = [user_data, ami]` on the master, `[desired_capacity]` on the ASG** | An apply never rebuilds the master (and its CA) by accident, and never undoes scale-out. | [0015](adr/0015-lifecycle-ignore-changes.md) |
 
 ## Security notes
 

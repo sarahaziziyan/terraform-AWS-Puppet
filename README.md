@@ -99,6 +99,7 @@ The full list, with fixes, is in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 ## More
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design and reasons
+- [docs/adr/](docs/adr/README.md): decision log (Architecture Decision Records)
 - [docs/INTERFACES.md](docs/INTERFACES.md): network endpoints, module inputs and outputs
 - [docs/TESTING.md](docs/TESTING.md): unit tests and manual checks
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): deployment steps
