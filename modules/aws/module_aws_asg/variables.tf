@@ -33,7 +33,12 @@ variable "max_size" {
   description = "Maximum number of instances in ASG"
 }
 
-variable "cpu_threshold" {
+variable "cpu_target" {
   type        = number
-  description = "CPU threshold for scaling policy"
+  description = "Average CPU % the target tracking policy keeps the group at: it adds nodes above it and removes them below it"
+
+  validation {
+    condition     = var.cpu_target > 0 && var.cpu_target < 100
+    error_message = "cpu_target must be a percentage between 0 and 100 (exclusive)."
+  }
 }

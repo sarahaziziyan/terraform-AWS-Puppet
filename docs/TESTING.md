@@ -82,7 +82,8 @@ Deploy to a scratch environment: a separate state key and `terraform.tfvars`, wi
 | Self-healing | Terminate one instance | The ASG launches a replacement that becomes healthy within about 10 minutes |
 | Secret not on nodes | On a node: `sudo ls /etc/puppetlabs/puppet/csr_attributes.yaml` | `No such file or directory` (deleted after the first Puppet run) |
 | Node setup | On a node: `tail -n 20 /var/log/user_data.log` | Ends with `Puppet agent configured as i-...`, not `ERROR: Puppet did not configure this node` |
-| Scale-out | Generate CPU load on the nodes (for example with `stress-ng`) | Alarm `web-asg-cpu-high-*` fires and one node is added |
+| Scale-out | Generate CPU load above `cpu_target` on the nodes (for example with `stress-ng`) | The `TargetTracking-*-AlarmHigh-*` alarm fires and nodes are added |
+| Scale-in | Stop the load and wait (scale-in is gradual, about 15 minutes or more) | The `TargetTracking-*-AlarmLow-*` alarm fires and nodes are removed, never below `asg_min_size` |
 
 Bootstrap logs: `/var/log/user_data.log` on web nodes, `/var/log/cloud-init-output.log` on the master.
 

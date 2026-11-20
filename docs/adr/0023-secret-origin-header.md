@@ -21,7 +21,7 @@
 
 - **Secret header checked by the ALB**: no extra cost, works with the current setup.
 - **AWS WAF on the ALB**: rejected for this purpose because of cost.
-- **CloudFront VPC origins with a private ALB**: considered later and rejected. It needs private subnets, and the nodes would then need a NAT gateway (about $30 or more a month).
+- **CloudFront VPC origins with a private ALB**: the strongest option, but rejected for now on cost. The ALB would be internal with no public address, so neither the header nor the CloudFront prefix list (about 55 rules) would be needed, and the CloudFront-to-ALB hop would stay on AWS's network (reducing known issue 22). But it needs private subnets with a NAT gateway (about $30 or more a month) so the nodes can still reach dnf, the Puppet repositories and GitHub, and changing the ALB's scheme replaces the ALB.
 
 ## Consequences
 

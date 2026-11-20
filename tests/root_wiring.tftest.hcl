@@ -27,7 +27,7 @@ mock_provider "aws" {
 
   mock_resource "aws_autoscaling_policy" {
     defaults = {
-      arn = "arn:aws:autoscaling:ap-southeast-1:123456789012:scalingPolicy:11111111-2222-3333-4444-555555555555:autoScalingGroupName/asg-test:policyName/cpu-scale-out"
+      arn = "arn:aws:autoscaling:ap-southeast-1:123456789012:scalingPolicy:11111111-2222-3333-4444-555555555555:autoScalingGroupName/asg-test:policyName/cpu-target-tracking"
     }
   }
 
@@ -62,7 +62,7 @@ variables {
   asg_min_size         = 1
   asg_desired_capacity = 2
   asg_max_size         = 4
-  cpu_threshold        = 70
+  cpu_target           = 70
 }
 
 # All six modules must accept what the root gives them (names, types, required inputs).
@@ -98,6 +98,16 @@ run "asg_sizes_flow_from_root_variables" {
 
 # Known issue 2: the ASG must use the template's real version number, so a template change
 # starts an instance refresh. The mock returns 7, so a hard-coded or "$Latest" value fails.
+# cpu_target must reach the ASG's target tracking policy.
+run "cpu_target_flows_from_root_variable" {
+  command = apply
+
+  assert {
+    condition     = module.web_asg.cpu_target == var.cpu_target
+    error_message = "cpu_target must reach the ASG's target tracking policy."
+  }
+}
+
 run "asg_uses_launch_template_latest_version" {
   command = apply
 

@@ -62,7 +62,7 @@ run "ami_lookup_is_amazon_linux_2023" {
   }
 }
 
-# The scale-out alarm evaluates 120 second periods, which needs detailed monitoring.
+# Detailed monitoring gives 1-minute CPU data, so the target tracking policy reacts faster.
 # update_default_version keeps the template's default version current. The ASG does not rely
 # on it: it uses the explicit latest_version number (known issue 2).
 run "monitoring_and_versioning" {
@@ -70,7 +70,7 @@ run "monitoring_and_versioning" {
 
   assert {
     condition     = aws_launch_template.web.monitoring[0].enabled
-    error_message = "Detailed monitoring must be enabled for the CPU alarm."
+    error_message = "Detailed monitoring must be enabled for CPU target tracking."
   }
 
   assert {

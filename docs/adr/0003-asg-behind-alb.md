@@ -1,6 +1,6 @@
 # 0003. Run web nodes in an Auto Scaling Group behind an ALB with ELB health checks
 
-- **Status:** Accepted
+- **Status:** Accepted (scaling policy replaced by [0025](0025-target-tracking-scaling.md))
 - **Date:** 2026-10-17
 - **Deciders:** Sarah Aziziyan
 - **Supersedes:** —

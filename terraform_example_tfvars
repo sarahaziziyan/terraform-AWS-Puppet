@@ -11,7 +11,7 @@ subnet_ids = [
 asg_min_size         = 3
 asg_desired_capacity = 3
 asg_max_size         = 25
-cpu_threshold        = 80
+cpu_target           = 60
 
 site_repo_url    = "https://github.com/yourrepo.git"
 site_repo_branch = "main"

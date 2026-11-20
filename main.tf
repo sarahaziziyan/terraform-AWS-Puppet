@@ -94,5 +94,5 @@ module "web_asg" {
   min_size         = var.asg_min_size
   desired_capacity = var.asg_desired_capacity
   max_size         = var.asg_max_size
-  cpu_threshold    = var.cpu_threshold
+  cpu_target       = var.cpu_target
 }

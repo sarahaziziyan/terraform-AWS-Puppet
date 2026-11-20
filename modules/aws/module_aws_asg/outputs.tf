@@ -22,3 +22,8 @@ output "launch_template_version" {
   description = "Launch template version the Auto Scaling Group uses"
   value       = aws_autoscaling_group.web.launch_template[0].version
 }
+
+output "cpu_target" {
+  description = "Average CPU % the target tracking policy keeps the group at"
+  value       = one(aws_autoscaling_policy.cpu_target.target_tracking_configuration).target_value
+}

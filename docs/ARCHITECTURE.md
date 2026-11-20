@@ -20,7 +20,7 @@ flowchart LR
   dns[(Route 53 private zone<br/>puppet.internal.puppet-server.com)] -.resolves.-> pm
   asg -.looks up.-> dns
   pm -->|vcsrepo pulls| git[(Public Git repo<br/>index.html)]
-  cw[CloudWatch CPU alarm] -->|scale out +1| asg
+  tt[Target tracking policy<br/>average CPU] -->|scale out / in| asg
   tf[(S3: Terraform state)]
 ```
 
@@ -43,7 +43,7 @@ flowchart LR
     ├── module_aws_launch_template/   # Web node template + bootstrap script
     ├── module_aws_alb/               # Load balancer, target group, listener
     ├── module_aws_cloudfront/        # CloudFront distribution (HTTPS for visitors), cache policy
-    └── module_aws_asg/               # Auto Scaling Group, scale-out policy, CPU alarm
+    └── module_aws_asg/               # Auto Scaling Group, CPU target tracking policy
 ```
 
 Each module has `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` and a `tests/` folder, and refers to nothing outside its own folder, so it can move to its own repository. The web nodes' bootstrap script is a `.tftpl` template (`module_aws_launch_template/user_data_nodes.tftpl`).
@@ -59,7 +59,7 @@ The modules' names in `main.tf` describe their role in the stack: `security_grou
 3. **Web nodes boot** (user data): install nginx without starting it, install the Puppet agent, read the autosign secret from SSM Parameter Store through their instance role and write it into `csr_attributes.yaml` (deleted again after the first Puppet run), set `certname` to the EC2 instance ID, and write the site repo URL and branch as Puppet *facts* (`/etc/puppetlabs/facter/facts.d/site.txt`).
 4. **First Puppet run**: the agent contacts the master over port 8140, its certificate request is auto-signed, and the master's catalog (nodes named `i-xxxx...`) clones the repo, copies `index.html` and assets into the nginx web root, and only then starts nginx. Until this run succeeds the node answers nothing, so it fails the health check and gets no traffic. The node retries the first run for up to 4 minutes (the master may still be installing on a fresh deploy); if it never succeeds, the node stays unhealthy and the ASG replaces it.
 5. **Steady state**: agents re-check in every 30 minutes, so pushing to the Git branch updates all nodes with no Terraform run.
-6. **Scaling**: a CloudWatch alarm (average CPU above `cpu_threshold` for 2 x 120 s) triggers a +1 instance policy with a 300 s cooldown. The ASG health check uses the ALB, with a 600 s grace period, which covers boot plus the first Puppet run.
+6. **Scaling**: a target tracking policy keeps the group's average CPU near `cpu_target`, adding nodes above it and removing them below it, between `asg_min_size` and `asg_max_size`. AWS manages the alarms. A new node's CPU counts only after a 600 s warmup. The ASG health check uses the ALB, with a 600 s grace period, which covers boot plus the first Puppet run.
 
 ## Why it works this way (design decisions)
 
@@ -84,6 +84,7 @@ A summary of the decisions that are in force. Each one has an Architecture Decis
 | **Security groups reference each other** | Web nodes accept HTTP only from the ALB; the master accepts 8140 only from web nodes. | [0004](adr/0004-security-groups-reference-each-other.md) |
 | **SSH only through EC2 Instance Connect** | Uses the region's AWS-managed prefix list, so it works in any region. | [0021](adr/0021-ssh-through-instance-connect-prefix-list.md) |
 | **IMDSv2 required, root volumes encrypted** | Blocks SSRF-style metadata reads; disks are encrypted whatever the account default. | [0016](adr/0016-imdsv2-and-encrypted-root-volumes.md) |
+| **Target tracking on average CPU** | The fleet grows under load and shrinks again when load drops; AWS manages the alarms. | [0025](adr/0025-target-tracking-scaling.md) |
 | **`ignore_changes = [user_data, ami]` on the master, `[desired_capacity]` on the ASG** | An apply never rebuilds the master (and its CA) by accident, and never undoes scale-out. | [0015](adr/0015-lifecycle-ignore-changes.md) |
 
 ## Security notes
@@ -96,4 +97,4 @@ A summary of the decisions that are in force. Each one has an Architecture Decis
 
 ## Limits and trade-offs
 
-Single Puppet master (no HA); scale-out only; HTTPS only on a generated `*.cloudfront.net` address; the website must be a public repo; the fixed internal domain `internal.puppet-server.com` is set in `main.tf` and the DNS module; unit tests exist but there is no CI (see [TESTING.md](TESTING.md), [DEPLOYMENT.md](DEPLOYMENT.md)). The full list of problems is in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+Single Puppet master (no HA); HTTPS only on a generated `*.cloudfront.net` address; the website must be a public repo; the fixed internal domain `internal.puppet-server.com` is set in `main.tf` and the DNS module; unit tests exist but there is no CI (see [TESTING.md](TESTING.md), [DEPLOYMENT.md](DEPLOYMENT.md)). The full list of problems is in [KNOWN_ISSUES.md](KNOWN_ISSUES.md).

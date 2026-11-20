@@ -44,32 +44,24 @@ resource "aws_autoscaling_group" "web" {
   }
 }
 
-# Scaling Policy - Scale out when CPU > threshold
-resource "aws_autoscaling_policy" "cpu_scale_out" {
-  name               = "cpu-scale-out"
-  scaling_adjustment = 1
-  adjustment_type    = "ChangeInCapacity"
-  cooldown           = 300
-  policy_type        = "SimpleScaling"
-
+# Target tracking: keep the group's average CPU near var.cpu_target, between min_size and max_size.
+# AWS creates and manages the high and low CloudWatch alarms itself, so the fleet scales out
+# under load and back in when load drops. Scale-in is gradual and never goes below min_size.
+resource "aws_autoscaling_policy" "cpu_target" {
+  name                   = "cpu-target-tracking"
+  policy_type            = "TargetTrackingScaling"
   autoscaling_group_name = aws_autoscaling_group.web.name
-}
 
-# CloudWatch Metric Alarm for CPU Utilization
-resource "aws_cloudwatch_metric_alarm" "cpu_high" {
-  alarm_name          = "web-asg-cpu-high-${aws_autoscaling_group.web.name}"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = 120
-  statistic           = "Average"
-  threshold           = var.cpu_threshold
+  # A new node serves nothing until boot plus the first Puppet run are done (the health check
+  # grace period). Until then its CPU is left out of the average, so the policy does not add
+  # more nodes while the first ones are still starting.
+  estimated_instance_warmup = 600
 
-  dimensions = {
-    AutoScalingGroupName = aws_autoscaling_group.web.name
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value     = var.cpu_target
+    disable_scale_in = false
   }
-
-  alarm_description = "Scale out when CPU utilization exceeds ${var.cpu_threshold}%"
-  alarm_actions     = [aws_autoscaling_policy.cpu_scale_out.arn]
 }

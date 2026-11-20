@@ -8,7 +8,7 @@ Architecture Decision Records (ADRs) for this stack. Each record follows Michael
 |---|---|---|---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions as ADRs | Accepted | 2026-11-20 | Reasons lived in one table that showed only the current state | — |
 | [0002](0002-s3-remote-backend.md) | Store Terraform state in an S3 remote backend | Accepted | 2026-10-05 | Local state is not durable or shared | — (extended by [0022](0022-encrypt-and-lock-state.md)) |
-| [0003](0003-asg-behind-alb.md) | Web nodes in an ASG behind an ALB with ELB health checks | Accepted | 2026-10-17 | Fixed instances were not replaced on failure | — |
+| [0003](0003-asg-behind-alb.md) | Web nodes in an ASG behind an ALB with ELB health checks | Accepted | 2026-10-17 | Fixed instances were not replaced on failure | — (scaling replaced by [0025](0025-target-tracking-scaling.md)) |
 | [0004](0004-security-groups-reference-each-other.md) | Security groups reference each other | Accepted | 2026-10-17 | Instance IPs change on replacement | — |
 | [0005](0005-alb-open-to-internet-over-http.md) | ALB open to the internet over HTTP | **Superseded** | 2026-10-17 | First public entry point, no domain | [0019](0019-cloudfront-for-https.md) |
 | [0006](0006-asg-follows-latest-template.md) | ASG uses the `$Latest` template version | **Superseded** | 2026-10-16 | Default way to point an ASG at a template | [0017](0017-explicit-template-version-rolling-refresh.md) |
@@ -30,6 +30,7 @@ Architecture Decision Records (ADRs) for this stack. Each record follows Michael
 | [0022](0022-encrypt-and-lock-state.md) | Encrypt and lock state in both backends | Accepted | 2026-11-18 | No locking; concurrent applies could overwrite state | — |
 | [0023](0023-secret-origin-header.md) | Secret origin header between CloudFront and the ALB | Accepted | 2026-11-18 | CloudFront prefix list is shared by all distributions | — |
 | [0024](0024-puppet-server-module-own-repository.md) | Puppet server module in its own repository | Accepted | 2026-11-20 | Master changes should be released on purpose | — |
+| [0025](0025-target-tracking-scaling.md) | Scale with a CPU target tracking policy | Accepted | 2026-11-20 | The fleet scaled out but never back in | — |
 
 ## How decisions changed
 
@@ -43,6 +44,7 @@ flowchart LR
   A13[0013 Hard-coded SSH range] -->|superseded by| A21[0021 Instance Connect prefix list]
   A2[0002 S3 backend] -->|extended by| A22[0022 Encrypt + lock state]
   A14[0014 One module per concern] -->|extended by| A24[0024 Puppet module own repo]
+  A3[0003 ASG behind ALB] -->|scaling replaced by| A25[0025 Target tracking]
 ```
 
 ## Adding a record

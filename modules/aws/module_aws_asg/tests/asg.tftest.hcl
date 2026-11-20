@@ -7,7 +7,7 @@
 mock_provider "aws" {
   mock_resource "aws_autoscaling_policy" {
     defaults = {
-      arn = "arn:aws:autoscaling:ap-southeast-1:123456789012:scalingPolicy:11111111-2222-3333-4444-555555555555:autoScalingGroupName/asg-test:policyName/cpu-scale-out"
+      arn = "arn:aws:autoscaling:ap-southeast-1:123456789012:scalingPolicy:11111111-2222-3333-4444-555555555555:autoScalingGroupName/asg-test:policyName/cpu-target-tracking"
     }
   }
 }
@@ -20,7 +20,7 @@ variables {
   min_size                = 1
   desired_capacity        = 2
   max_size                = 4
-  cpu_threshold           = 70
+  cpu_target              = 70
 }
 
 # Fleet size is controlled by the caller; the module must not change the numbers.
@@ -155,61 +155,66 @@ run "name_tag_propagates_to_instances" {
   }
 }
 
-# Scale-out: the CPU alarm watches this group and triggers a +1 instance policy.
-run "cpu_alarm_triggers_scale_out" {
+# Known issue 14: one target tracking policy on this group's average CPU scales out and back in.
+run "cpu_target_tracking_scales_both_ways" {
   command = apply
 
   assert {
-    condition     = aws_cloudwatch_metric_alarm.cpu_high.threshold == var.cpu_threshold
-    error_message = "The alarm threshold must equal the cpu_threshold input."
-  }
-
-  assert {
     condition = (
-      aws_cloudwatch_metric_alarm.cpu_high.metric_name == "CPUUtilization" &&
-      aws_cloudwatch_metric_alarm.cpu_high.namespace == "AWS/EC2" &&
-      aws_cloudwatch_metric_alarm.cpu_high.statistic == "Average" &&
-      aws_cloudwatch_metric_alarm.cpu_high.comparison_operator == "GreaterThanThreshold"
+      aws_autoscaling_policy.cpu_target.autoscaling_group_name == aws_autoscaling_group.web.name &&
+      aws_autoscaling_policy.cpu_target.policy_type == "TargetTrackingScaling"
     )
-    error_message = "The alarm must fire when average EC2 CPUUtilization is greater than the threshold."
+    error_message = "The group must use a target tracking policy."
   }
 
   assert {
-    condition     = aws_cloudwatch_metric_alarm.cpu_high.evaluation_periods == 2 && aws_cloudwatch_metric_alarm.cpu_high.period == 120
-    error_message = "The alarm must evaluate 2 periods of 120 seconds."
+    condition     = aws_autoscaling_policy.cpu_target.target_tracking_configuration[0].predefined_metric_specification[0].predefined_metric_type == "ASGAverageCPUUtilization"
+    error_message = "The policy must track the group's average CPU utilization."
   }
 
   assert {
-    condition     = aws_cloudwatch_metric_alarm.cpu_high.dimensions["AutoScalingGroupName"] == aws_autoscaling_group.web.name
-    error_message = "The alarm must measure this Auto Scaling Group, not another one."
+    condition     = aws_autoscaling_policy.cpu_target.target_tracking_configuration[0].target_value == var.cpu_target
+    error_message = "The policy's target must equal the cpu_target input."
   }
 
   assert {
-    condition     = aws_cloudwatch_metric_alarm.cpu_high.alarm_actions == toset([aws_autoscaling_policy.cpu_scale_out.arn])
-    error_message = "The alarm must trigger the scale-out policy."
+    condition     = aws_autoscaling_policy.cpu_target.target_tracking_configuration[0].disable_scale_in == false
+    error_message = "Scale-in must stay enabled, otherwise the fleet never shrinks."
   }
 
+  # New nodes are useless until Puppet has deployed the site; counting their idle CPU early
+  # would make the policy think the fleet is fine, or remove them, before they serve anything.
   assert {
-    condition = (
-      aws_autoscaling_policy.cpu_scale_out.autoscaling_group_name == aws_autoscaling_group.web.name &&
-      aws_autoscaling_policy.cpu_scale_out.adjustment_type == "ChangeInCapacity" &&
-      aws_autoscaling_policy.cpu_scale_out.scaling_adjustment == 1 &&
-      aws_autoscaling_policy.cpu_scale_out.cooldown == 300
-    )
-    error_message = "The policy must add 1 instance to this group with a 300 second cooldown."
+    condition     = aws_autoscaling_policy.cpu_target.estimated_instance_warmup == aws_autoscaling_group.web.health_check_grace_period
+    error_message = "The policy's instance warmup must match the health check grace period (boot plus the first Puppet run)."
   }
 }
 
-# A different threshold must flow through to the alarm (guards against a hard-coded value).
-run "cpu_threshold_is_configurable" {
+# A different target must flow through to the policy (guards against a hard-coded value).
+run "cpu_target_is_configurable" {
   command = apply
 
   variables {
-    cpu_threshold = 85
+    cpu_target = 45
   }
 
   assert {
-    condition     = aws_cloudwatch_metric_alarm.cpu_high.threshold == 85
-    error_message = "Changing cpu_threshold must change the alarm threshold."
+    condition     = aws_autoscaling_policy.cpu_target.target_tracking_configuration[0].target_value == 45
+    error_message = "Changing cpu_target must change the policy's target value."
   }
+
+  assert {
+    condition     = output.cpu_target == 45
+    error_message = "The cpu_target output must report the policy's target value."
+  }
+}
+
+run "cpu_target_must_be_a_percentage" {
+  command = plan
+
+  variables {
+    cpu_target = 120
+  }
+
+  expect_failures = [var.cpu_target]
 }

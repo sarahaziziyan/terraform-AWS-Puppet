@@ -14,12 +14,14 @@ Deployment is manual, with Terraform, into a single environment. There is no CI/
 
 Always read `terraform plan` before applying.
 
+Stacks created before [ADR 0025](adr/0025-target-tracking-scaling.md): rename `cpu_threshold` to `cpu_target` in `terraform.tfvars` and set it to the CPU % to hold (for example 60), not a trigger. The next apply deletes the old `web-asg-cpu-high-*` alarm and `cpu-scale-out` policy and creates the `cpu-target-tracking` policy; the running nodes are not replaced.
+
 | What changed | How to deploy | Effect |
 |---|---|---|
 | Website content | Push to the branch in `site_repo_branch` | Nodes pick it up on their next Puppet run (up to 30 minutes). No Terraform run |
 | Web node setup (user data, instance type) | `terraform apply` | Apply creates a new launch template version and updates the ASG to it, which starts a rolling instance refresh. Running nodes are replaced a batch at a time, keeping at least 50% healthy. `terraform plan` shows this as an in-place change to the ASG's `launch_template.version` |
 | Nothing (a new Amazon Linux 2023 image was released) | `terraform apply` | The launch template always looks up the newest image, so apply creates a new version and starts a refresh, the same as above. If `plan` shows `image_id` changing on the launch template, this is why |
-| ASG sizes or CPU threshold | Edit `terraform.tfvars`, then `terraform apply` | Minimum, maximum and threshold are applied in place. `asg_desired_capacity` is used only when the ASG is first created; later changes to it are ignored so that apply does not undo scale-out. To resize a running fleet, change `asg_min_size` (to add nodes) or `asg_max_size` (to remove nodes) and apply |
+| ASG sizes or CPU target | Edit `terraform.tfvars`, then `terraform apply` | Minimum, maximum and `cpu_target` are applied in place. `asg_desired_capacity` is used only when the ASG is first created; later changes to it are ignored so that apply does not undo scale-out. To resize a running fleet, change `asg_min_size` (to add nodes) or `asg_max_size` (to remove nodes) and apply |
 | Security groups, load balancer | `terraform apply` | Security groups are replaced create-before-destroy |
 | CloudFront settings | `terraform apply` | Changes take a few minutes to reach all CloudFront locations. Cached pages expire within 5 minutes |
 | Puppet code or master bootstrap script | Edit the files on the master directly | Terraform ignores changes to the master's user data, so `apply` does nothing |

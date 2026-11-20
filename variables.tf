@@ -70,7 +70,7 @@ variable "asg_max_size" {
   description = "Maximum number of instances in ASG"
 }
 
-variable "cpu_threshold" {
+variable "cpu_target" {
   type        = number
-  description = "CPU threshold for scaling policy"
+  description = "Average CPU % the web fleet is kept at: nodes are added above it and removed below it"
 }
